@@ -857,8 +857,8 @@ if __name__ == "__main__":
 
     # 原本的模型與訓練
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    generator_A2B = Generator().to(device)
-    generator_B2A = Generator().to(device)
+    generator_A2B = Generator(input_nc=3, output_nc=3).to(device)
+    generator_B2A = Generator(input_nc=3, output_nc=3).to(device)
     PatchGANDiscriminator_A = SpectralPatchGANDiscriminator().to(device)
     PatchGANDiscriminator_B = SpectralPatchGANDiscriminator().to(device)
 
