@@ -749,21 +749,15 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         with open(val_log_path, "a", encoding="utf-8") as f:
             f.write(val_log_str + "\n")
 
-        # === 畫圖 ===
-        if (epoch+1) % 10 == 0:
-            plt.figure()
-            plt.plot(epochs_record, train_losses, label="Train Loss", marker='o')
-            plt.plot(epochs_record, val_losses, label="Val Loss", marker='o')
-            plt.xlabel("Epoch")
-            plt.ylabel("Loss")
-            plt.title("Training & Validation Loss")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            os.makedirs("loss_plot", exist_ok=True)
-            plt.savefig(os.path.join("loss_plot", f"loss_curve_epoch{epoch+1}.png"))
-            plt.close()
-            print(f"✔ 已儲存 loss 曲線圖到 epoch{epoch+1}.png")
+        # === 輸出 CSV ===
+        csv_path = os.path.join(base_dir, "loss_log.csv")
+        with open(csv_path, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["epoch", "train_loss", "val_loss"])
+            for epoch_num, train_loss, val_loss in zip(epochs_record, train_losses, val_losses):
+                writer.writerow([epoch_num, train_loss, val_loss])
+
+        print(f"✔ 損失資料已儲存至 {csv_path}")
 
 
         # === 模型儲存 ===
