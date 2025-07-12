@@ -160,97 +160,190 @@ class SpectralNormConv2d(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-# === SE Block ===
-class SEBlock(nn.Module):
-    def __init__(self, channels, reduction=16):
-        super(SEBlock, self).__init__()
+def get_1d_dct(i, freq, L):
+    result = math.cos(math.pi * freq * (i + 0.5) / L) / math.sqrt(L)
+    if freq == 0:
+        return result
+    else:
+        return result * math.sqrt(2)
+
+# FCANET
+def get_dct_weights(width, height, channel, fidx_u=[0, 0, 6, 0, 0, 1, 1, 4, 5, 1, 3, 0, 0, 0, 2, 3], fidx_v=[0, 1, 0, 5,
+                                                                                2, 0, 2, 0, 0, 6, 0, 4, 6, 3, 2, 5]):
+    scale_ratio = width//7
+    fidx_u = [u*scale_ratio for u in fidx_u]
+    fidx_v = [v*scale_ratio for v in fidx_v]
+    dct_weights = torch.zeros(1, channel, width, height)
+    c_part = channel // len(fidx_u)
+    for i, (u_x, v_y) in enumerate(zip(fidx_u, fidx_v)):
+        for t_x in range(width):
+            for t_y in range(height):
+                dct_weights[:, i * c_part: (i+1)*c_part, t_x, t_y]\
+                =get_1d_dct(t_x, u_x, width) * get_1d_dct(t_y, v_y, height)
+    return dct_weights
+
+
+class FcaLayer(nn.Module):
+    def __init__(self, channel, reduction, width, height):
+        super(FcaLayer, self).__init__()
+        self.width = width
+        self.height = height
+        self.register_buffer('pre_computed_dct_weights',get_dct_weights(self.width, self.height, channel))
         self.fc = nn.Sequential(
-            nn.Conv2d(channels, channels // reduction, 1, bias=False),
-            nn.ReLU(),
-            nn.Conv2d(channels // reduction, channels * 2, 1, bias=False),
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
-        w = F.adaptive_avg_pool2d(x, 1)
-        w = self.fc(w)
-        w, b = w.split(w.data.size(1) // 2, dim=1)
-        w = torch.sigmoid(w)
-        return x * w + b
+        b, c, _, _ = x.size()
+        y = F.adaptive_avg_pool2d(x,(self.height,self.width))
+        y = torch.sum(y*self.pre_computed_dct_weights,dim=(2,3))
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
 
-# === CSP 殘差塊 + SE ===
-class CSPResBlockWithSE(nn.Module):
-    def __init__(self, channels, reduction=16):
-        super(CSPResBlockWithSE, self).__init__()
-        self.split_channels = channels // 2
+# n_residual_blocks=9
+class ResidualBlock(nn.Module):
+    def __init__(self, in_features):
+        super(ResidualBlock, self).__init__()
 
-        # 主支路處理
-        self.main_path = nn.Sequential(
-            nn.Conv2d(self.split_channels, self.split_channels, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(self.split_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(self.split_channels, self.split_channels, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(self.split_channels),
-        )
+        conv_block = [  nn.ReflectionPad2d(1),
+                        nn.Conv2d(in_features, in_features, 3),
+                        nn.InstanceNorm2d(in_features),
+                        nn.ReLU(inplace=True),
+                        nn.ReflectionPad2d(1),
+                        nn.Conv2d(in_features, in_features, 3),
+                        nn.InstanceNorm2d(in_features)]
 
-        self.se = SEBlock(self.split_channels, reduction)
-        self.final_conv = nn.Conv2d(channels, channels, kernel_size=1)
-
-        # 合併後通道對齊
-        self.final_conv = nn.Conv2d(channels, channels, kernel_size=1)
+        self.conv_block = nn.Sequential(*conv_block)
 
     def forward(self, x):
-        x1, x2 = torch.chunk(x, 2, dim=1)  # CSP 分支：主支路與捷徑支路
-        out = self.main_path(x1)           # 主支路捲積處理
-        out = self.se(out)                 # 通道注意力（SE）
-        out = x1 + 0.7*out                 # 殘差融合：加入主支路原始 x1
-        out = torch.cat([out, x2], dim=1)  # CSP 合併主支路與捷徑支路
-        return self.final_conv(out)        # 1x1 conv 對齊通道
+        return x + self.conv_block(x)
+    
+class Generator(nn.Module):
+    def __init__(self, input_nc, output_nc):
+        super(Generator, self).__init__()
 
-
-# === Generator with CSP + SE + SpatialAttention ===
-class CSPGeneratorWithSE(nn.Module):
-    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=6):
-        super(CSPGeneratorWithSE, self).__init__()
-
-        # Encoder
-        model = [
+        # Encoding layers
+        # Initial convolution block
+        # inputsize:3*256*256, outputsize:64*256*256
+        self.conv_1 = nn.Sequential(
             nn.ReflectionPad2d(3),
-            nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0),
-            nn.InstanceNorm2d(ngf),
+            nn.Conv2d(input_nc, 64, 7, stride=1),
+            nn.InstanceNorm2d(64),
             nn.ReLU(inplace=True),
+            FcaLayer(64, 8, 32, 32)
+        )
 
-            nn.Conv2d(ngf, ngf * 2, kernel_size=3, stride=2, padding=1),
-            nn.InstanceNorm2d(ngf * 2),
+        # Downsampling
+        # inputsize:64*256*256, outputsize:128*128*128
+        self.conv_2 = nn.Sequential(
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(128),
             nn.ReLU(inplace=True),
-
-            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=3, stride=2, padding=1),
-            nn.InstanceNorm2d(ngf * 4),
+            FcaLayer(128, 8, 32, 32)
+        )
+        # inputsize:128*128*128, outputsize:256*64*64
+        self.conv_3 = nn.Sequential(
+            nn.Conv2d(128, 256, 3, stride=2, padding=1),
+            nn.InstanceNorm2d(256),
             nn.ReLU(inplace=True),
-        ]
+            FcaLayer(256, 8, 32, 32)
+        )
 
-        # Residual blocks (CSP + SE)
-        for _ in range(n_blocks):
-            model += [CSPResBlockWithSE(ngf * 4)]
+        # Residual blocks
+        # inputsize:256*64*64, outputsize:256*64*64
+        in_features = 256
+        self.conv_41 = nn.Sequential(nn.ReflectionPad2d(1),
+                                     nn.Conv2d(in_features, in_features, 3),
+                                     nn.InstanceNorm2d(in_features),
+                                     nn.ReLU(inplace=True))
 
-        # Decoder
-        model += [
-            nn.ConvTranspose2d(ngf * 4, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(ngf * 2),
+        self.conv_42 = nn.Sequential(nn.ReflectionPad2d(1),
+                                     nn.Conv2d(in_features, in_features, 3),
+                                     nn.InstanceNorm2d(in_features),
+                                     FcaLayer(in_features, 8, 32, 32))
+
+        # Upsampling
+        # inputsize:256*64*64, outputsize:128*128*128
+        self.conv_5 = nn.Sequential(
+            nn.ConvTranspose2d(512, 128, 3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(128),
             nn.ReLU(inplace=True),
+            FcaLayer(128, 8, 32, 32)
+        )
 
-            nn.ConvTranspose2d(ngf * 2, ngf, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(ngf),
+        # inputsize:128*128*128, outputsize:64*256*256
+        self.conv_6 = nn.Sequential(
+            nn.ConvTranspose2d(256, 64, 3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(64),
             nn.ReLU(inplace=True),
+            FcaLayer(64, 8, 32, 32)
+        )
 
+        # Output layer
+        self.conv_7 = nn.Sequential(
             nn.ReflectionPad2d(3),
-            nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0),
+            nn.Conv2d(128, output_nc, 7),
             nn.Tanh()
-        ]
+        )
 
-        self.model = nn.Sequential(*model)
 
     def forward(self, x):
-        return self.model(x)
+        """ The forward pass of the generator with skip connections
+                """
+        # Encoding
+        # batch size x 64 x 256 x 256
+        c1 = self.conv_1(x)
+        # c1_1 = self.cbam1(c1)
+
+        # batch size x 128 x 128 x 128
+        c2 = self.conv_2(c1)
+
+        # batch size x 256 x 64 x 64
+        c3 = self.conv_3(c2)
+        
+        # double res
+        c4_1 = c3 + self.conv_41(c3)
+        c4_2 = c3 + self.conv_42(c4_1)
+        c4_3 = c4_2 + self.conv_41(c4_2)
+        c4_4 = c4_2 + self.conv_42(c4_3)
+        c4_5 = c4_4 + self.conv_41(c4_4)
+        c4_6 = c4_4 + self.conv_42(c4_5)
+        c4_7 = c4_6 + self.conv_41(c4_6)
+        c4_8 = c4_6 + self.conv_42(c4_7)
+        c4_9 = c4_8 + self.conv_41(c4_8)
+        c4_10 = c4_8 + self.conv_42(c4_9)
+        c4_11 = c4_10 + self.conv_41(c4_10)
+        c4_12 = c4_10 + self.conv_42(c4_11)
+        c4_13 = c4_12 + self.conv_41(c4_12)
+        c4_14 = c4_12 + self.conv_42(c4_13)
+        c4_15 = c4_14 + self.conv_41(c4_14)
+        c4_16 = c4_14 + self.conv_42(c4_15)
+        c4_17 = c4_16 + self.conv_41(c4_16)
+        c4 = c4_16 + self.conv_42(c4_17)
+
+        # Decoding
+        # batch size x 512 x 64 x 64
+        skip1_de = torch.cat((c3, c4), 1)
+
+        # batch size x 128 x 128 x 128
+        c1_de = self.conv_5(skip1_de)
+
+        # batch size x 256 x 128 x 128
+        skip2_de = torch.cat((c2, c1_de), 1)
+
+        # batch size x 64 x 256 x 256
+        c3_de = self.conv_6(skip2_de)
+
+        # batch size x 128 x 256 x 256
+        skip3_de = torch.cat((c1, c3_de), 1)
+
+        # batch size x 3 x 256 x 256
+        c4_de = self.conv_7(skip3_de)
+
+        return c4_de
 
 
 # **多尺度 PatchGAN 判別器**
