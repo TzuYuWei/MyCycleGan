@@ -160,35 +160,11 @@ class SpectralNormConv2d(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-def get_1d_dct(i, freq, L):
-    result = math.cos(math.pi * freq * (i + 0.5) / L) / math.sqrt(L)
-    if freq == 0:
-        return result
-    else:
-        return result * math.sqrt(2)
-
-# FCANET
-def get_dct_weights(width, height, channel, fidx_u=[0, 0, 6, 0, 0, 1, 1, 4, 5, 1, 3, 0, 0, 0, 2, 3], fidx_v=[0, 1, 0, 5,
-                                                                                2, 0, 2, 0, 0, 6, 0, 4, 6, 3, 2, 5]):
-    scale_ratio = width//7
-    fidx_u = [u*scale_ratio for u in fidx_u]
-    fidx_v = [v*scale_ratio for v in fidx_v]
-    dct_weights = torch.zeros(1, channel, width, height)
-    c_part = channel // len(fidx_u)
-    for i, (u_x, v_y) in enumerate(zip(fidx_u, fidx_v)):
-        for t_x in range(width):
-            for t_y in range(height):
-                dct_weights[:, i * c_part: (i+1)*c_part, t_x, t_y]\
-                =get_1d_dct(t_x, u_x, width) * get_1d_dct(t_y, v_y, height)
-    return dct_weights
-
-
-class FcaLayer(nn.Module):
-    def __init__(self, channel, reduction, width, height):
-        super(FcaLayer, self).__init__()
-        self.width = width
-        self.height = height
-        self.register_buffer('pre_computed_dct_weights',get_dct_weights(self.width, self.height, channel))
+# === SE Block ===
+class SELayer(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(SELayer, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(channel, channel // reduction, bias=False),
             nn.ReLU(inplace=True),
@@ -198,153 +174,110 @@ class FcaLayer(nn.Module):
 
     def forward(self, x):
         b, c, _, _ = x.size()
-        y = F.adaptive_avg_pool2d(x,(self.height,self.width))
-        y = torch.sum(y*self.pre_computed_dct_weights,dim=(2,3))
+        y = self.avg_pool(x).view(b, c)
         y = self.fc(y).view(b, c, 1, 1)
         return x * y.expand_as(x)
 
-# n_residual_blocks=9
-class ResidualBlock(nn.Module):
-    def __init__(self, in_features):
-        super(ResidualBlock, self).__init__()
+class ResnetBlock(nn.Module):
+    """ResNet block with configurable normalization, dropout, and padding."""
 
-        conv_block = [  nn.ReflectionPad2d(1),
-                        nn.Conv2d(in_features, in_features, 3),
-                        nn.InstanceNorm2d(in_features),
-                        nn.ReLU(inplace=True),
-                        nn.ReflectionPad2d(1),
-                        nn.Conv2d(in_features, in_features, 3),
-                        nn.InstanceNorm2d(in_features)]
+    def __init__(self, dim, padding_type='reflect', norm_layer=nn.InstanceNorm2d, use_dropout=False, use_bias=True):
+        super(ResnetBlock, self).__init__()
+        self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
+        self.se_block = SELayer(dim)
 
-        self.conv_block = nn.Sequential(*conv_block)
+    def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        conv_block = []
+        p = 0
+
+        # Padding type
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+        else:
+            raise NotImplementedError(f'Padding type [{padding_type}] is not supported')
+
+        # First conv
+        conv_block += [
+            nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
+            norm_layer(dim),
+            nn.ReLU(True)
+        ]
+
+        if use_dropout:
+            conv_block += [nn.Dropout(0.5)]
+
+        # Padding again
+        p = 0
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+
+        # Second conv
+        conv_block += [
+            nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias),
+            norm_layer(dim)
+        ]
+
+        return nn.Sequential(*conv_block)
 
     def forward(self, x):
-        return x + self.conv_block(x)
-    
+        out = self.conv_block(x)
+        out = self.se_block(out)
+        return x + out
+
+
+
+# === Generator with RES  ===
 class Generator(nn.Module):
-    def __init__(self, input_nc, output_nc):
+    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=9):
         super(Generator, self).__init__()
 
-        # Encoding layers
-        # Initial convolution block
-        # inputsize:3*256*256, outputsize:64*256*256
-        self.conv_1 = nn.Sequential(
+        # Encoder
+        model = [
             nn.ReflectionPad2d(3),
-            nn.Conv2d(input_nc, 64, 7, stride=1),
-            nn.InstanceNorm2d(64),
+            nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0),
+            nn.InstanceNorm2d(ngf),
             nn.ReLU(inplace=True),
-            FcaLayer(64, 8, 32, 32)
-        )
 
-        # Downsampling
-        # inputsize:64*256*256, outputsize:128*128*128
-        self.conv_2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, stride=2, padding=1),
-            nn.InstanceNorm2d(128),
+            nn.Conv2d(ngf, ngf * 2, kernel_size=3, stride=2, padding=1),
+            nn.InstanceNorm2d(ngf * 2),
             nn.ReLU(inplace=True),
-            FcaLayer(128, 8, 32, 32)
-        )
-        # inputsize:128*128*128, outputsize:256*64*64
-        self.conv_3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, stride=2, padding=1),
-            nn.InstanceNorm2d(256),
+
+            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=3, stride=2, padding=1),
+            nn.InstanceNorm2d(ngf * 4),
             nn.ReLU(inplace=True),
-            FcaLayer(256, 8, 32, 32)
-        )
+        ]
 
-        # Residual blocks
-        # inputsize:256*64*64, outputsize:256*64*64
-        in_features = 256
-        self.conv_41 = nn.Sequential(nn.ReflectionPad2d(1),
-                                     nn.Conv2d(in_features, in_features, 3),
-                                     nn.InstanceNorm2d(in_features),
-                                     nn.ReLU(inplace=True))
+        # Residual blocks 
+        for _ in range(n_blocks):
+            model += [ResnetBlock(dim=ngf * 4, padding_type='reflect', norm_layer=nn.InstanceNorm2d, use_dropout=False, use_bias=True)]
 
-        self.conv_42 = nn.Sequential(nn.ReflectionPad2d(1),
-                                     nn.Conv2d(in_features, in_features, 3),
-                                     nn.InstanceNorm2d(in_features),
-                                     FcaLayer(in_features, 8, 32, 32))
-
-        # Upsampling
-        # inputsize:256*64*64, outputsize:128*128*128
-        self.conv_5 = nn.Sequential(
-            nn.ConvTranspose2d(512, 128, 3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(128),
+        # Decoder
+        model += [
+            nn.ConvTranspose2d(ngf * 4, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(ngf * 2),
             nn.ReLU(inplace=True),
-            FcaLayer(128, 8, 32, 32)
-        )
 
-        # inputsize:128*128*128, outputsize:64*256*256
-        self.conv_6 = nn.Sequential(
-            nn.ConvTranspose2d(256, 64, 3, stride=2, padding=1, output_padding=1),
-            nn.InstanceNorm2d(64),
+            nn.ConvTranspose2d(ngf * 2, ngf, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.InstanceNorm2d(ngf),
             nn.ReLU(inplace=True),
-            FcaLayer(64, 8, 32, 32)
-        )
 
-        # Output layer
-        self.conv_7 = nn.Sequential(
             nn.ReflectionPad2d(3),
-            nn.Conv2d(128, output_nc, 7),
+            nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0),
             nn.Tanh()
-        )
+        ]
 
+        self.model = nn.Sequential(*model)
 
     def forward(self, x):
-        """ The forward pass of the generator with skip connections
-                """
-        # Encoding
-        # batch size x 64 x 256 x 256
-        c1 = self.conv_1(x)
-        # c1_1 = self.cbam1(c1)
-
-        # batch size x 128 x 128 x 128
-        c2 = self.conv_2(c1)
-
-        # batch size x 256 x 64 x 64
-        c3 = self.conv_3(c2)
-        
-        # double res
-        c4_1 = c3 + self.conv_41(c3)
-        c4_2 = c3 + self.conv_42(c4_1)
-        c4_3 = c4_2 + self.conv_41(c4_2)
-        c4_4 = c4_2 + self.conv_42(c4_3)
-        c4_5 = c4_4 + self.conv_41(c4_4)
-        c4_6 = c4_4 + self.conv_42(c4_5)
-        c4_7 = c4_6 + self.conv_41(c4_6)
-        c4_8 = c4_6 + self.conv_42(c4_7)
-        c4_9 = c4_8 + self.conv_41(c4_8)
-        c4_10 = c4_8 + self.conv_42(c4_9)
-        c4_11 = c4_10 + self.conv_41(c4_10)
-        c4_12 = c4_10 + self.conv_42(c4_11)
-        c4_13 = c4_12 + self.conv_41(c4_12)
-        c4_14 = c4_12 + self.conv_42(c4_13)
-        c4_15 = c4_14 + self.conv_41(c4_14)
-        c4_16 = c4_14 + self.conv_42(c4_15)
-        c4_17 = c4_16 + self.conv_41(c4_16)
-        c4 = c4_16 + self.conv_42(c4_17)
-
-        # Decoding
-        # batch size x 512 x 64 x 64
-        skip1_de = torch.cat((c3, c4), 1)
-
-        # batch size x 128 x 128 x 128
-        c1_de = self.conv_5(skip1_de)
-
-        # batch size x 256 x 128 x 128
-        skip2_de = torch.cat((c2, c1_de), 1)
-
-        # batch size x 64 x 256 x 256
-        c3_de = self.conv_6(skip2_de)
-
-        # batch size x 128 x 256 x 256
-        skip3_de = torch.cat((c1, c3_de), 1)
-
-        # batch size x 3 x 256 x 256
-        c4_de = self.conv_7(skip3_de)
-
-        return c4_de
-
+        return self.model(x)
 
 # **多尺度 PatchGAN 判別器**
 class MultiScalePatchGANDiscriminator(nn.Module):
@@ -857,8 +790,8 @@ if __name__ == "__main__":
 
     # 原本的模型與訓練
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    generator_A2B = Generator(input_nc=3, output_nc=3).to(device)
-    generator_B2A = Generator(input_nc=3, output_nc=3).to(device)
+    generator_A2B = Generator.to(device)
+    generator_B2A = Generator.to(device)
     PatchGANDiscriminator_A = SpectralPatchGANDiscriminator().to(device)
     PatchGANDiscriminator_B = SpectralPatchGANDiscriminator().to(device)
 
