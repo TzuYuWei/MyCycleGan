@@ -55,7 +55,7 @@ def calculate_miou(pred_mask, gt_mask):
 
     return miou_metric(pred_mask, gt_mask).item()
 
-def compute_flops_params(model, input_shape=(1, 3, 256, 256)):
+def compute_flops_params(model, input_shape=(1, 3, 128, 128)):
     """
     計算 FLOPs 和參數量
     """
@@ -637,6 +637,8 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         val_loss_epoch = 0
         val_batches = 0
         total_val_ssim = total_val_psnr = total_val_lpips = total_val_miou = 0
+        total_val_pl = 0
+        total_val_edge_iou = 0
 
         with torch.no_grad():
             for real_A, real_B, _ in val_loader:
@@ -644,21 +646,27 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
                 real_B = real_B.to(device)
 
                 loss_G_A2B = calculate_losses(generator_A2B, discriminator_B, real_A, real_B, real_B,
-                                              vgg, criterion_gan, criterion_cycle, criterion_perceptual,
-                                              criterion_identity, frequency_loss, tv_loss, lambda_id)
+                                            vgg, criterion_gan, criterion_cycle, criterion_perceptual,
+                                            criterion_identity, frequency_loss, tv_loss, lambda_id)
                 loss_G_B2A = calculate_losses(generator_B2A, discriminator_A, real_B, real_A, real_A,
-                                              vgg, criterion_gan, criterion_cycle, criterion_perceptual,
-                                              criterion_identity, frequency_loss, tv_loss, lambda_id)
+                                            vgg, criterion_gan, criterion_cycle, criterion_perceptual,
+                                            criterion_identity, frequency_loss, tv_loss, lambda_id)
                 val_loss_epoch += (loss_G_A2B.item() + loss_G_B2A.item())
 
                 fake_B = generator_A2B(real_A)
+
                 ssim_value, psnr_value, lpips_value = calculate_metrics(real_A, fake_B)
                 miou_value = calculate_miou(fake_B, real_A)
+                pl_value = calculate_pl(real_A, fake_B, vgg, criterion_perceptual)
+                edge_iou_values = edge_iou(real_A, fake_B)
+                edge_iou_avg = sum(edge_iou_values) / len(edge_iou_values)
 
                 total_val_ssim += ssim_value
                 total_val_psnr += psnr_value
                 total_val_lpips += lpips_value
                 total_val_miou += miou_value
+                total_val_pl += pl_value
+                total_val_edge_iou += edge_iou_avg
 
                 val_batches += 1
 
@@ -666,17 +674,20 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         avg_val_psnr = total_val_psnr / max(val_batches, 1)
         avg_val_lpips = total_val_lpips / max(val_batches, 1)
         avg_val_miou = total_val_miou / max(val_batches, 1)
+        avg_val_pl = total_val_pl / max(val_batches, 1)
+        avg_val_edge_iou = total_val_edge_iou / max(val_batches, 1)
         val_loss_epoch /= max(val_batches, 1)
         val_losses.append(val_loss_epoch)
 
         val_elapsed = time.time() - val_start_time
         print(f"Epoch [{epoch+1}/100] 驗證時間: {val_elapsed:.2f} 秒")
-        
+
         # === 印 & 記錄 val log ===
         val_log_str = (f"Epoch [{epoch+1}/100], Val Loss: {val_loss_epoch:.4f}, "
-               f"Val SSIM: {avg_val_ssim:.4f}, Val PSNR: {avg_val_psnr:.2f}, "
-               f"Val LPIPS: {avg_val_lpips:.4f}, Val mIoU: {avg_val_miou:.4f}, "
-               f"Val Time: {val_elapsed:.2f}s") 
+                    f"Val SSIM: {avg_val_ssim:.4f}, Val PSNR: {avg_val_psnr:.2f}, "
+                    f"Val LPIPS: {avg_val_lpips:.4f}, Val PL: {avg_val_pl:.4f}, "
+                    f"Edge IoU: {avg_val_edge_iou:.4f}, Val mIoU: {avg_val_miou:.4f}, "
+                    f"Val Time: {val_elapsed:.2f}s")
         print(val_log_str)
 
         with open(val_log_path, "a", encoding="utf-8") as f:
@@ -725,7 +736,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         with open(train_log_path, "a", encoding="utf-8") as f:
             f.write(f"Epoch [{epoch+1}/100] 單次訓練時間: {epoch_elapsed:.2f} 秒\n")
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+    transforms.Resize((128, 128)),
     transforms.ToTensor(),
 ])
 
@@ -741,7 +752,7 @@ train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers
 def test_folder_images(generator, input_folder, output_folder, device):
     generator.eval()
     transform_test = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -775,7 +786,7 @@ if __name__ == "__main__":
 
     # Step 2: 建立 DataLoader
     transform = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -790,8 +801,8 @@ if __name__ == "__main__":
 
     # 原本的模型與訓練
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    generator_A2B = Generator.to(device)
-    generator_B2A = Generator.to(device)
+    generator_A2B = Generator().to(device)
+    generator_B2A = Generator().to(device)
     PatchGANDiscriminator_A = SpectralPatchGANDiscriminator().to(device)
     PatchGANDiscriminator_B = SpectralPatchGANDiscriminator().to(device)
 
