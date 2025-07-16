@@ -563,7 +563,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
 
     train_losses, val_losses, epochs_record = [], [], []
 
-    for epoch in range(100):
+    for epoch in range(150):
         epoch_start_time = time.time()
         generator_A2B.train()
         generator_B2A.train()
@@ -583,7 +583,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
             miou_value = calculate_miou(fake_B, real_A)
 
             # === log ===
-            log_str = (f"Epoch [{epoch+1}/100], Iter [{i+1}] | "
+            log_str = (f"Epoch [{epoch+1}/150], Iter [{i+1}] | "
                        f"SSIM: {ssim_value:.4f}, PSNR: {psnr_value:.2f} dB, LPIPS: {lpips_value:.4f}, "
                        f"PL: {pl_value:.4f}, EDGE IoU: {edge_iou_avg:.4f}, mIoU: {miou_value:.4f}")
             print(log_str)
@@ -682,7 +682,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         print(f"Epoch [{epoch+1}/100] 驗證時間: {val_elapsed:.2f} 秒")
 
         # === 印 & 記錄 val log ===
-        val_log_str = (f"Epoch [{epoch+1}/100], Val Loss: {val_loss_epoch:.4f}, "
+        val_log_str = (f"Epoch [{epoch+1}/150], Val Loss: {val_loss_epoch:.4f}, "
                     f"Val SSIM: {avg_val_ssim:.4f}, Val PSNR: {avg_val_psnr:.2f}, "
                     f"Val LPIPS: {avg_val_lpips:.4f}, Val PL: {avg_val_pl:.4f}, "
                     f"Edge IoU: {avg_val_edge_iou:.4f}, Val mIoU: {avg_val_miou:.4f}, "
@@ -706,7 +706,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         # === 模型儲存 ===
         if (epoch + 1) % 1 == 0:
             elapsed_time = time.time() - epoch_start_time
-            print(f"Epoch [{epoch+1}/100] 訓練時間: {elapsed_time:.2f} 秒")
+            print(f"Epoch [{epoch+1}/150] 訓練時間: {elapsed_time:.2f} 秒")
             if torch.cuda.is_available():
                 allocated_memory = torch.cuda.memory_allocated(device) / 1024 ** 2
                 reserved_memory = torch.cuda.memory_reserved(device) / 1024 ** 2
@@ -725,14 +725,14 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
             }, save_path)
             print(f"✔ 模型已儲存至 {save_path}")
 
-        print(f"Epoch [{epoch+1}/100], Loss G_A2B: {loss_G_A2B.item()} Loss G_B2A: {loss_G_B2A.item()} Loss D_A: {loss_D_A.item()} Loss D_B: {loss_D_B.item()} "
+        print(f"Epoch [{epoch+1}/150], Loss G_A2B: {loss_G_A2B.item()} Loss G_B2A: {loss_G_B2A.item()} Loss D_A: {loss_D_A.item()} Loss D_B: {loss_D_B.item()} "
               f"Train Loss: {epoch_train_loss:.4f} | Val Loss: {val_loss_epoch:.4f}")
         
         epoch_elapsed = time.time() - epoch_start_time
-        print(f"Epoch [{epoch+1}/100] 單次訓練時間: {epoch_elapsed:.2f} 秒")
+        print(f"Epoch [{epoch+1}/150] 單次訓練時間: {epoch_elapsed:.2f} 秒")
 
         with open(train_log_path, "a", encoding="utf-8") as f:
-            f.write(f"Epoch [{epoch+1}/100] 單次訓練時間: {epoch_elapsed:.2f} 秒\n")
+            f.write(f"Epoch [{epoch+1}/150] 單次訓練時間: {epoch_elapsed:.2f} 秒\n")
 transform = transforms.Compose([
     transforms.Resize((256, 256)),
     transforms.ToTensor(),
