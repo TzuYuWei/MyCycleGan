@@ -35,10 +35,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
 base_dir = r'C:\Users\User\Desktop\小城市測試\model\\'
-loss_plot_dir = os.path.join(base_dir, "loss_plot")
 log_dir = r"C:\Users\User\Desktop\小城市測試\model\logs"
 os.makedirs(log_dir, exist_ok=True)
-os.makedirs(loss_plot_dir, exist_ok=True)
 
 # 初始化 IoU 計算器（針對 21 類別 segmentation）
 miou_metric = JaccardIndex(task="multiclass", num_classes=21).to(device)
@@ -56,7 +54,7 @@ def calculate_miou(pred_mask, gt_mask):
 
     return miou_metric(pred_mask, gt_mask).item()
 
-def compute_flops_params(model, input_shape=(1, 3, 128, 128)):
+def compute_flops_params(model, input_shape=(1, 3, 256, 256)):
     """
     計算 FLOPs 和參數量
     """
@@ -714,7 +712,6 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
                 reserved_memory = torch.cuda.memory_reserved(device) / 1024 ** 2
                 print(f"GPU 記憶體使用量: 已分配 {allocated_memory:.2f} MB, 已預留 {reserved_memory:.2f} MB")
 
-            os.makedirs(os.path.join(base_dir, 'CycleGAN_Results'), exist_ok=True)
             save_path = os.path.join(base_dir, f"epoch{epoch + 1}.pth")
             torch.save({
                 'epoch': epoch + 1,
@@ -737,7 +734,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         with open(train_log_path, "a", encoding="utf-8") as f:
             f.write(f"Epoch [{epoch+1}/100] 單次訓練時間: {epoch_elapsed:.2f} 秒\n")
 transform = transforms.Compose([
-    transforms.Resize((128, 128)),
+    transforms.Resize((256, 256)),
     transforms.ToTensor(),
 ])
 
@@ -753,7 +750,7 @@ train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers
 def test_folder_images(generator, input_folder, output_folder, device):
     generator.eval()
     transform_test = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize((256, 256)),
         transforms.ToTensor(),
     ])
 
@@ -787,7 +784,7 @@ if __name__ == "__main__":
 
     # Step 2: 建立 DataLoader
     transform = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize((256, 256)),
         transforms.ToTensor(),
     ])
 
