@@ -119,7 +119,8 @@ def test_model(generator, dataloader, device, save_dir):
 
                 fake_sunny = generator(rain_img)
                 fake_sunny = F.interpolate(fake_sunny, size=(256, 512), mode='bilinear', align_corners=False)
-
+                gt_img = F.interpolate(gt_img, size=(256, 512), mode='bilinear', align_corners=False)
+                
                 ssim_val = ssim(fake_sunny, gt_img, data_range=1.0).item()
                 psnr_val = psnr(fake_sunny, gt_img, data_range=1.0).item()
                 lpips_val = lpips_fn(fake_sunny, gt_img).mean().item()
