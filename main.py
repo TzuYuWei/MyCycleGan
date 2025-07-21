@@ -54,7 +54,7 @@ def calculate_miou(pred_mask, gt_mask):
 
     return miou_metric(pred_mask, gt_mask).item()
 
-def compute_flops_params(model, input_shape=(1, 3, 256, 256)):
+def compute_flops_params(model, input_shape=(1, 3, 128, 128)):
     """
     計算 FLOPs 和參數量
     """
@@ -235,7 +235,7 @@ class ResnetBlock(nn.Module):
 
 # === Generator with RES  ===
 class Generator(nn.Module):
-    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=9):
+    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=6):
         super(Generator, self).__init__()
 
         # Encoder
@@ -734,7 +734,7 @@ def train_rain_removal(generator_A2B, generator_B2A, discriminator_A, discrimina
         with open(train_log_path, "a", encoding="utf-8") as f:
             f.write(f"Epoch [{epoch+1}/150] 單次訓練時間: {epoch_elapsed:.2f} 秒\n")
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+    transforms.Resize((128, 128)),
     transforms.ToTensor(),
 ])
 
@@ -750,7 +750,7 @@ train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers
 def test_folder_images(generator, input_folder, output_folder, device):
     generator.eval()
     transform_test = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
@@ -784,7 +784,7 @@ if __name__ == "__main__":
 
     # Step 2: 建立 DataLoader
     transform = transforms.Compose([
-        transforms.Resize((256, 256)),
+        transforms.Resize((128, 128)),
         transforms.ToTensor(),
     ])
 
