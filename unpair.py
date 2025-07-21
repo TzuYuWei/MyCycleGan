@@ -15,6 +15,9 @@ import torch.optim as optim
 import itertools
 import time
 
+save_dir = r"C:\Users\User\Desktop\小城市測試\models"
+os.makedirs(save_dir, exist_ok=True)
+
 # === Unpaired Dataset（訓練用） ===
 class UnpairedImageDataset(Dataset):
     def __init__(self, root_A, root_B, transform=None):
@@ -105,7 +108,8 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             'generator_B2A': generator_B2A.state_dict(),
             'discriminator_A': discriminator_A.state_dict(),
             'discriminator_B': discriminator_B.state_dict()
-        }, f"checkpoint_epoch{epoch+1}.pth")
+        }, os.path.join(save_dir, f"checkpoint_epoch{epoch+1}.pth"))
+        
         print(f"✔ 模型已儲存於 checkpoint_epoch{epoch+1}.pth")
 
 # === 主程式 ===
