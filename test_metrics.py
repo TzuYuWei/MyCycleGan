@@ -102,7 +102,7 @@ def test_model(generator, dataloader, device, save_dir):
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
-    jaccard = JaccardIndex(task="binary")
+    jaccard = JaccardIndex(task="binary").to(device)
 
     total_ssim = total_psnr = total_lpips = total_pl = total_edge_iou = total_miou = 0
 
@@ -118,9 +118,18 @@ def test_model(generator, dataloader, device, save_dir):
                 gt_img = gt_img.to(device)
 
                 fake_sunny = generator(rain_img)
-                fake_sunny = F.interpolate(fake_sunny, size=(256, 512), mode='bilinear', align_corners=False)
-                gt_img = F.interpolate(gt_img, size=(256, 512), mode='bilinear', align_corners=False)
-                
+                fake_sunny = F.interpolate(fake_sunny, size=(128, 256), mode='bilinear', align_corners=False)
+                gt_img = F.interpolate(gt_img, size=(128, 256), mode='bilinear', align_corners=False)
+                fake_sunny = fake_sunny.clamp(0.0, 1.0)
+                gt_img = gt_img.clamp(0.0, 1.0)
+                # 🧩 加這段來確保 name 是字串
+                if isinstance(name, (list, tuple)):
+                    name = name[0]
+
+                # 儲存圖片
+                save_path = os.path.join(save_dir, f"fake_{name}")
+                save_image(fake_sunny, save_path)
+
                 ssim_val = ssim(fake_sunny, gt_img, data_range=1.0).item()
                 psnr_val = psnr(fake_sunny, gt_img, data_range=1.0).item()
                 lpips_val = lpips_fn(fake_sunny, gt_img).mean().item()
@@ -138,8 +147,7 @@ def test_model(generator, dataloader, device, save_dir):
                 total_edge_iou += edge_val
                 total_miou += miou_val
 
-                # 儲存生成圖與指標 log
-                save_image(fake_sunny, os.path.join(save_dir, f"fake_{name}"))
+                # 儲存指標 log
                 print(f"[配對] {name} ➜ {gt_name}")
                 log_file.write(f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}, mIoU: {miou_val:.4f}\n")
 '''

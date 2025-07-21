@@ -33,9 +33,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-save_dir = r"C:\Users\User\Desktop\小城市測試\models"
-loss_csv_path = os.path.join(save_dir, "train_loss_log.csv")
-os.makedirs(save_dir, exist_ok=True)
+save_dir = r'C:\Users\User\Desktop\小城市測試\R'
+model_dir = r'C:\Users\User\Desktop\小城市測試\models'
+loss_csv_path = os.path.join(model_dir, "train_loss_log.csv")
+os.makedirs(model_dir, exist_ok=True)
 
 # 可學習的頻率索引
 class LearnableFrequencies(nn.Module):
@@ -417,7 +418,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             'generator_B2A': generator_B2A.state_dict(),
             'discriminator_A': discriminator_A.state_dict(),
             'discriminator_B': discriminator_B.state_dict()
-        }, os.path.join(save_dir, f"checkpoint_epoch{epoch+1}.pth"))
+        }, os.path.join(model_dir, f"checkpoint_epoch{epoch+1}.pth"))
         elapsed_time = time.time() - start_time  # 計算總時間    
         print(f"✔ 模型已儲存於 checkpoint_epoch{epoch+1}.pth")
         print(f"Epoch [{epoch+1}/100] 訓練時間: {elapsed_time:.2f} 秒")
