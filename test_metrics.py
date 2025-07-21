@@ -48,7 +48,8 @@ class RainToGTDataset(Dataset):
             rain_img = self.transform(rain_img)
             gt_img = self.transform(gt_img)
         name = os.path.basename(self.rain_paths[idx])
-        return rain_img, gt_img, name
+        gt_name = os.path.basename(self.gt_paths[idx])
+        return rain_img, gt_img, name, gt_name
 
 # === Perceptual Loss ===
 class VGGPerceptualLoss(torch.nn.Module):
@@ -97,6 +98,7 @@ def compute_flops_params(model, input_shape=(1, 3, 128, 128), device='cpu'):
 def test_model(generator, dataloader, device, save_dir):
     generator.eval()
     os.makedirs(save_dir, exist_ok=True)
+    result_txt = os.path.join(save_dir, "test_results.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
@@ -109,34 +111,43 @@ def test_model(generator, dataloader, device, save_dir):
     print(f"FLOPs: {flops / 1e9:.2f} GFLOPs")
     print(f"Params: {params / 1e6:.2f} M")
 
-    with torch.no_grad():
-        for i, (rain_img, gt_img, name) in enumerate(dataloader):
-            rain_img = rain_img.to(device)
-            gt_img = gt_img.to(device)
+    with open(result_txt, "w") as log_file:
+        with torch.no_grad():
+            for i, (rain_img, gt_img, name, gt_name) in enumerate(dataloader):
+                rain_img = rain_img.to(device)
+                gt_img = gt_img.to(device)
 
-            fake_sunny = generator(rain_img)
-            _, _, h, w = gt_img.size()
-            fake_sunny = F.interpolate(fake_sunny, size=(h, w), mode='bilinear', align_corners=False)
+                fake_sunny = generator(rain_img)
+                fake_sunny = F.interpolate(fake_sunny, size=(256, 512), mode='bilinear', align_corners=False)
 
-            total_ssim += ssim(fake_sunny, gt_img, data_range=1.0).item()
-            total_psnr += psnr(fake_sunny, gt_img, data_range=1.0).item()
-            total_lpips += lpips_fn(fake_sunny, gt_img).mean().item()
-            total_pl += perceptual_loss_fn(fake_sunny, gt_img).item()
+                ssim_val = ssim(fake_sunny, gt_img, data_range=1.0).item()
+                psnr_val = psnr(fake_sunny, gt_img, data_range=1.0).item()
+                lpips_val = lpips_fn(fake_sunny, gt_img).mean().item()
+                pl_val = perceptual_loss_fn(fake_sunny, gt_img).item()
+                edge_val = edge_iou_opencv(gt_img, fake_sunny)
 
-            edge_val = edge_iou_opencv(gt_img, fake_sunny)
-            total_edge_iou += edge_val
+                pred_bin = (fake_sunny.mean(dim=1, keepdim=True) > 0.5).int()
+                target_bin = (gt_img.mean(dim=1, keepdim=True) > 0.5).int()
+                miou_val = jaccard(pred_bin, target_bin).item()
 
-            pred_bin = (fake_sunny.mean(dim=1, keepdim=True) > 0.5).int()
-            target_bin = (gt_img.mean(dim=1, keepdim=True) > 0.5).int()
-            total_miou += jaccard(pred_bin, target_bin).item()
+                total_ssim += ssim_val
+                total_psnr += psnr_val
+                total_lpips += lpips_val
+                total_pl += pl_val
+                total_edge_iou += edge_val
+                total_miou += miou_val
 
-            save_image(fake_sunny, os.path.join(save_dir, f"fake_{name}"))
-
-    n = len(dataloader)
-    print("===== 評估指標結果（平均） =====")
-    print(f"SSIM: {total_ssim / n:.4f}")
-    print(f"PSNR: {total_psnr / n:.2f} dB")
-    print(f"LPIPS: {total_lpips / n:.4f}")
-    print(f"Perceptual Loss: {total_pl / n:.4f}")
-    print(f"EDGE IoU (OpenCV): {total_edge_iou / n:.4f}")
-    print(f"mIoU: {total_miou / n:.4f}")
+                # 儲存生成圖與指標 log
+                save_image(fake_sunny, os.path.join(save_dir, f"fake_{name}"))
+                print(f"[配對] {name} ➜ {gt_name}")
+                log_file.write(f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}, mIoU: {miou_val:.4f}\n")
+'''
+        n = len(dataloader)
+        print("===== 評估指標結果（平均） =====")
+        print(f"SSIM: {total_ssim / n:.4f}")
+        print(f"PSNR: {total_psnr / n:.2f} dB")
+        print(f"LPIPS: {total_lpips / n:.4f}")
+        print(f"Perceptual Loss: {total_pl / n:.4f}")
+        print(f"EDGE IoU (OpenCV): {total_edge_iou / n:.4f}")
+        print(f"mIoU: {total_miou / n:.4f}")
+'''

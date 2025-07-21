@@ -15,7 +15,7 @@ if __name__ == "__main__":
     rain_root = r"C:\\Users\\User\\Desktop\\小城市測試\\leftImg8bit_rain\\testA"
     gt_root = r"C:\\Users\\User\\Desktop\\小城市測試\\leftImg8bit_rain\\testB"
     model_path = r"C:\\Users\\User\\Desktop\\小城市測試\\models\\checkpoint_epoch100.pth"
-    save_dir = r"C:\\Users\\User\\Desktop\\小城市測試\\test_results"
+    save_dir = r"C:\\Users\\User\\Desktop\\小城市測試\\R"
 
     # === 圖片轉換設定（與訓練一致） ===
     transform = transforms.Compose([
