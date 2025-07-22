@@ -17,6 +17,7 @@ if __name__ == "__main__":
     gt_root = r'C:\Users\User\Desktop\CycleGan_128\test\testB'
     model_path = r'C:\Users\User\Desktop\CycleGan_128\models\checkpoint_epoch100.pth'
     save_dir = r'C:\Users\User\Desktop\CycleGan_128\result\test result_128'
+    TXT_dir = r'C:\Users\User\Desktop\CycleGan_128\result\train_mean'
 
     # === 圖片轉換設定（與訓練一致） ===
     transform = transforms.Compose([
