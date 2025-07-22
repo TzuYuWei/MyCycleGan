@@ -6,20 +6,21 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from test_metrics import RainToGTDataset, test_model
 from unpair import Generator  # 根據你使用的模型架構載入
+from torchvision.transforms import InterpolationMode
 
 if __name__ == "__main__":
     # === 裝置設定 ===
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # === 資料路徑設定 ===
-    rain_root = r"C:\\Users\\User\\Desktop\\小城市測試\\leftImg8bit_rain\\testA"
-    gt_root = r"C:\\Users\\User\\Desktop\\小城市測試\\leftImg8bit_rain\\testB"
-    model_path = r"C:\\Users\\User\\Desktop\\小城市測試\\models\\checkpoint_epoch100.pth"
-    save_dir = r"C:\\Users\\User\\Desktop\\小城市測試\\R"
+    rain_root = r'C:\Users\User\Desktop\CycleGan_128\test\testA'
+    gt_root = r'C:\Users\User\Desktop\CycleGan_128\test\testB'
+    model_path = r'C:\Users\User\Desktop\CycleGan_128\models\checkpoint_epoch100.pth'
+    save_dir = r'C:\Users\User\Desktop\CycleGan_128\result\rain_128'
 
     # === 圖片轉換設定（與訓練一致） ===
     transform = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize((128, 128), interpolation=InterpolationMode.BILINEAR),
         transforms.ToTensor(),
     ])
 
