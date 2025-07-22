@@ -35,4 +35,4 @@ if __name__ == "__main__":
     generator.load_state_dict(checkpoint["generator_A2B"])
 
     # === 執行測試與評估 ===
-    test_model(generator, test_loader, device, save_dir)
+    test_model(generator, test_loader, device, save_dir, TXT_dir)
