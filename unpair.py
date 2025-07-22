@@ -37,8 +37,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 TXT_dir = r'C:\Users\User\Desktop\CycleGan_128\result\train_mean'
 save_dir = r'C:\Users\User\Desktop\CycleGan_128\result\test result_128'
 model_dir = r'C:\Users\User\Desktop\CycleGan_128\models'
-loss_csv_path = os.path.join(model_dir, "train_loss_log.csv")
-os.makedirs(model_dir, exist_ok=True)
+loss_dir = r'C:\Users\User\Desktop\CycleGan_128\loss_plot'
+loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
 class LearnableFrequencies(nn.Module):
