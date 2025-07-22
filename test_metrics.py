@@ -95,10 +95,10 @@ def compute_flops_params(model, input_shape=(1, 3, 128, 128), device='cpu'):
     return flops, params
 
 # === 主測試函數 ===
-def test_model(generator, dataloader, device, save_dir):
+def test_model(generator, dataloader, device, save_dir, TXT_dir):
     generator.eval()
-    os.makedirs(save_dir, exist_ok=True)
-    result_txt = os.path.join(save_dir, "test_results.txt")
+    os.makedirs(TXT_dir, exist_ok=True)
+    result_txt = os.path.join(TXT_dir, "test_results.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
@@ -118,8 +118,8 @@ def test_model(generator, dataloader, device, save_dir):
                 gt_img = gt_img.to(device)
 
                 fake_sunny = generator(rain_img)
-                fake_sunny = F.interpolate(fake_sunny, size=(128, 256), mode='bilinear', align_corners=False)
-                gt_img = F.interpolate(gt_img, size=(128, 256), mode='bilinear', align_corners=False)
+                fake_sunny = F.interpolate(fake_sunny, size=(128, 128), mode='bilinear', align_corners=False)
+                gt_img = F.interpolate(gt_img, size=(128, 128), mode='bilinear', align_corners=False)
                 fake_sunny = fake_sunny.clamp(0.0, 1.0)
                 gt_img = gt_img.clamp(0.0, 1.0)
                 # 🧩 加這段來確保 name 是字串

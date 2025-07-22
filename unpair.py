@@ -28,13 +28,15 @@ import re
 import matplotlib.pyplot as plt
 import random
 import shutil
+from torchvision.transforms import InterpolationMode
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-save_dir = r'C:\Users\User\Desktop\小城市測試\R'
-model_dir = r'C:\Users\User\Desktop\小城市測試\models'
+TXT_dir = r'C:\Users\User\Desktop\CycleGan_128\result\train_mean'
+save_dir = r'C:\Users\User\Desktop\CycleGan_128\result\test result_128'
+model_dir = r'C:\Users\User\Desktop\CycleGan_128\models'
 loss_csv_path = os.path.join(model_dir, "train_loss_log.csv")
 os.makedirs(model_dir, exist_ok=True)
 
@@ -64,31 +66,12 @@ class SpectralNormConv2d(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-# === SE Block ===
-class SELayer(nn.Module):
-    def __init__(self, channel, reduction=16):
-        super(SELayer, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel, bias=False),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
-        return x * y.expand_as(x)
-
 class ResnetBlock(nn.Module):
     """ResNet block with configurable normalization, dropout, and padding."""
 
     def __init__(self, dim, padding_type='reflect', norm_layer=nn.InstanceNorm2d, use_dropout=False, use_bias=True):
         super(ResnetBlock, self).__init__()
         self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
-        self.se_block = SELayer(dim)
 
     def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         conv_block = []
@@ -133,10 +116,7 @@ class ResnetBlock(nn.Module):
 
     def forward(self, x):
         out = self.conv_block(x)
-        out = self.se_block(out)
         return x + out
-
-
 
 # === Generator with RES  ===
 class Generator(nn.Module):
@@ -427,11 +407,11 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    rain_root = r'C:\Users\User\Desktop\小城市測試\leftImg8bit_rain\trainA'
-    sun_root = r'C:\Users\User\Desktop\小城市測試\leftImg8bit_rain\trainB'
+    rain_root = r'C:\Users\User\Desktop\CycleGan_128\train\trainA'
+    sun_root = r'C:\Users\User\Desktop\CycleGan_128\train\trainB'
 
     transform = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize((128, 128), interpolation=InterpolationMode.BILINEAR),
         transforms.ToTensor(),
     ])
 
