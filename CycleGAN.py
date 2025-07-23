@@ -439,8 +439,8 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    rain_root = r'C:\Users\User\Desktop\CycleGan_128\train\trainA'
-    sun_root = r'C:\Users\User\Desktop\CycleGan_128\train\trainB'
+    rain_root = r'C:\Users\User\Desktop\CycleGAN_flip_128\train\trainA'
+    sun_root = r'C:\Users\User\Desktop\CycleGAN_flip_128\train\trainB'
 
     transform = transforms.Compose([
         transforms.Resize((128, 128), interpolation=InterpolationMode.BILINEAR),
