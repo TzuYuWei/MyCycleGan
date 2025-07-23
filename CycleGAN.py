@@ -29,6 +29,8 @@ import matplotlib.pyplot as plt
 import random
 import shutil
 from torchvision.transforms import InterpolationMode
+import collections
+from pathlib import Path
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
@@ -435,7 +437,6 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
         print(f"✔ 模型已儲存於 checkpoint_epoch{epoch+1}.pth")
         print(f"Epoch [{epoch+1}/100] 訓練時間: {elapsed_time:.2f} 秒")
 
-# === 主程式 ===
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -448,6 +449,30 @@ if __name__ == "__main__":
     ])
 
     train_dataset = UnpairedImageDataset(rain_root, sun_root, transform=transform)
+
+    # === 🔍 額外檢查資料夾與圖片數 ===
+    import collections
+    from pathlib import Path
+
+    def count_images_by_city(image_paths):
+        counter = collections.defaultdict(int)
+        for path in image_paths:
+            city = Path(path).parts[-2]  # 倒數第二層資料夾
+            counter[city] += 1
+        return counter
+
+    print("✔ 總圖片數 A:", len(train_dataset.images_A))
+    print("✔ 總圖片數 B:", len(train_dataset.images_B))
+    print("✔ 資料集長度（max）:", len(train_dataset))
+
+    print("\n🧾 Rain A 每個城市圖片數：")
+    for city, count in count_images_by_city(train_dataset.images_A).items():
+        print(f"  - {city}: {count} 張")
+
+    print("\n🧾 Sun B 每個城市圖片數：")
+    for city, count in count_images_by_city(train_dataset.images_B).items():
+        print(f"  - {city}: {count} 張")
+
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
 
     generator_A2B = Generator().to(device)
@@ -458,4 +483,7 @@ if __name__ == "__main__":
     fake_A_pool = ImagePool(pool_size=50)
     fake_B_pool = ImagePool(pool_size=50)
 
-    train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, train_loader, device, fake_A_pool, fake_B_pool)
+    # 正式訓練
+    train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B,
+                            train_loader, device, fake_A_pool, fake_B_pool)
+
