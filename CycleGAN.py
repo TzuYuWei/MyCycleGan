@@ -296,8 +296,38 @@ class UnpairedImageDataset(Dataset):
 
         return img_A, img_B
 
+class ImagePool():
+    def __init__(self, pool_size):
+        self.pool_size = pool_size
+        if self.pool_size > 0:  # create an empty pool
+            self.num_imgs = 0
+            self.images = []
+
+    def query(self, images):
+        if self.pool_size == 0:  # if the buffer size is 0, do nothing
+            return images
+        return_images = []
+        for image in images:
+            image = torch.unsqueeze(image.data, 0)
+            if self.num_imgs < self.pool_size:   # if the buffer is not full; keep inserting current images to the buffer
+                self.num_imgs = self.num_imgs + 1
+                self.images.append(image)
+                return_images.append(image)
+            else:
+                p = random.uniform(0, 1)
+                if p > 0.5:  # by 50% chance, the buffer will return a previously stored image, and insert the current image into the buffer
+                    random_id = random.randint(0, self.pool_size - 1)  # randint is inclusive
+                    tmp = self.images[random_id].clone()
+                    self.images[random_id] = image
+                    return_images.append(tmp)
+                else:       # by another 50% chance, the buffer will return the current image
+                    return_images.append(image)
+        return_images = torch.cat(return_images, 0)   # collect all the images and return
+        return return_images
+    
+
 # === 訓練函數（不含 val） ===
-def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, dataloader, device):
+def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, dataloader, device, fake_A_pool, fake_B_pool):
     criterion_gan = nn.MSELoss()  # 對抗損失
     criterion_cycle = nn.L1Loss()  # 循環一致性損失
     criterion_perceptual = nn.L1Loss()  # 感知損失
@@ -370,16 +400,18 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 
             # Update Discriminator A
             optimizer_D_A.zero_grad()
+            fake_A_for_D = fake_A_pool.query(fake_A.detach())
             loss_D_A_real = criterion_gan(discriminator_A(real_A), torch.ones_like(discriminator_A(real_A)))
-            loss_D_A_fake = criterion_gan(discriminator_A(fake_A.detach()), torch.zeros_like(discriminator_A(real_A)))
+            loss_D_A_fake = criterion_gan(discriminator_A(fake_A_for_D), torch.zeros_like(discriminator_A(real_A)))
             loss_D_A = 0.5 * (loss_D_A_real + loss_D_A_fake)
             loss_D_A.backward()
             optimizer_D_A.step()
 
             # Update Discriminator B
             optimizer_D_B.zero_grad()
+            fake_B_for_D = fake_B_pool.query(fake_B.detach())
             loss_D_B_real = criterion_gan(discriminator_B(real_B), torch.ones_like(discriminator_B(real_B)))
-            loss_D_B_fake = criterion_gan(discriminator_B(fake_B.detach()), torch.zeros_like(discriminator_B(real_B)))
+            loss_D_B_fake = criterion_gan(discriminator_B(fake_B_for_D), torch.zeros_like(discriminator_B(real_B)))
             loss_D_B = 0.5 * (loss_D_B_real + loss_D_B_fake)
             loss_D_B.backward()
             optimizer_D_B.step()
@@ -423,4 +455,7 @@ if __name__ == "__main__":
     discriminator_A = SpectralPatchGANDiscriminator().to(device)
     discriminator_B = SpectralPatchGANDiscriminator().to(device)
 
-    train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, train_loader, device)
+    fake_A_pool = ImagePool(pool_size=50)
+    fake_B_pool = ImagePool(pool_size=50)
+
+    train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, train_loader, device, fake_A_pool, fake_B_pool)
