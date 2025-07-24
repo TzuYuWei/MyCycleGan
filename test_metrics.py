@@ -24,20 +24,22 @@ class RainToGTDataset(Dataset):
         self.gt_paths = []
         self.transform = transform
 
-        for city in os.listdir(rain_root):
-            rain_city_path = os.path.join(rain_root, city)
-            gt_city_path = os.path.join(gt_root, city)
-            if not os.path.isdir(gt_city_path):
-                continue
+        # rain_root / gt_root 已是單一資料夾
+        rain_files = sorted([f for f in os.listdir(rain_root) if f.endswith('.png')])
+        for rain_name in rain_files:
+            if "_rain_" in rain_name:
+                base_name = rain_name.split("_rain_")[0] + ".png"
+            else:
+                base_name = rain_name  # fallback
 
-            rain_files = sorted([f for f in os.listdir(rain_city_path) if f.endswith('.png')])
-            for rain_name in rain_files:
-                base_name = rain_name.split("_rain")[0] + ".png"
-                gt_path = os.path.join(gt_city_path, base_name)
-                rain_path = os.path.join(rain_city_path, rain_name)
-                if os.path.exists(gt_path):
-                    self.rain_paths.append(rain_path)
-                    self.gt_paths.append(gt_path)
+            rain_path = os.path.join(rain_root, rain_name)
+            gt_path = os.path.join(gt_root, base_name)
+
+            if os.path.exists(gt_path):
+                self.rain_paths.append(rain_path)
+                self.gt_paths.append(gt_path)
+            else:
+                print(f"❌ 無法配對 GT：{gt_path}")
 
     def __len__(self):
         return len(self.rain_paths)
@@ -99,6 +101,7 @@ def compute_flops_params(model, input_shape=(1, 3, 128, 128), device='cpu'):
 def test_model(generator, dataloader, device, save_dir, TXT_dir):
     generator.eval()
     os.makedirs(TXT_dir, exist_ok=True)
+    
     # 根據第一張圖片的路徑來決定是 flip 還是 origin
     first_rain_path = dataloader.dataset.rain_paths[0]
     txt_subname = "flip" if "flip" in first_rain_path else "origin"
@@ -115,7 +118,7 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
     print(f"FLOPs: {flops / 1e9:.2f} GFLOPs")
     print(f"Params: {params / 1e6:.2f} M")
 
-    with open(result_txt, "w") as log_file:
+    with open(result_txt, "a") as log_file:
         with torch.no_grad():
             for i, (rain_img, gt_img, name, gt_name) in enumerate(dataloader):
                 rain_img = rain_img.to(device)
