@@ -450,10 +450,6 @@ if __name__ == "__main__":
 
     train_dataset = UnpairedImageDataset(rain_root, sun_root, transform=transform)
 
-    # === 🔍 額外檢查資料夾與圖片數 ===
-    import collections
-    from pathlib import Path
-
     def count_images_by_city(image_paths):
         counter = collections.defaultdict(int)
         for path in image_paths:
