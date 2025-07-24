@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\User\Desktop\CycleGAN+SE_128\result\train_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
@@ -99,7 +99,10 @@ def compute_flops_params(model, input_shape=(1, 3, 128, 128), device='cpu'):
 def test_model(generator, dataloader, device, save_dir, TXT_dir):
     generator.eval()
     os.makedirs(TXT_dir, exist_ok=True)
-    result_txt = os.path.join(TXT_dir, "test_results.txt")
+    # 根據第一張圖片的路徑來決定是 flip 還是 origin
+    first_rain_path = dataloader.dataset.rain_paths[0]
+    txt_subname = "flip" if "flip" in first_rain_path else "origin"
+    result_txt = os.path.join(TXT_dir, f"test_results_{txt_subname}.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
@@ -127,8 +130,14 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
                 if isinstance(name, (list, tuple)):
                     name = name[0]
 
-                # 儲存圖片
-                save_path = os.path.join(save_dir, f"fake_{name}")
+                # 根據完整圖片路徑來判斷是 flip 還是 origin
+                rain_path = dataloader.dataset.rain_paths[i]
+                subfolder = "flip" if "flip" in rain_path else "origin"
+
+                save_subdir = os.path.join(save_dir, subfolder)
+                os.makedirs(save_subdir, exist_ok=True)
+
+                save_path = os.path.join(save_subdir, name)  # 不加 fake_ 前綴，保留原檔名
                 save_image(fake_sunny, save_path)
 
                 ssim_val = ssim(fake_sunny, gt_img, data_range=1.0).item()

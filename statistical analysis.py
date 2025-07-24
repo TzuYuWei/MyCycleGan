@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 # === 讀取 TXT 檔案 ===
-txt_path = r'C:\Users\ericw\Desktop\test_results.txt'
+txt_path = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean\test_results.txt'
 with open(txt_path, 'r', encoding='utf-8') as f:
     lines = f.readlines()
 
@@ -44,6 +44,6 @@ else:
     result_df.loc['Q3/Q1'] = pd.Series(stability_data)
 
     # 儲存 CSV 檔案
-    output_path = r'C:\Users\ericw\Desktop\R\stat_results.csv'  # <<<←←←← 在這裡填入實際儲存路徑
+    output_path = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean\stat_results.csv'  # <<<←←←← 在這裡填入實際儲存路徑
     result_df.to_csv(output_path, encoding='utf-8-sig')
     print(f"✅ 統計結果已儲存至：{output_path}")

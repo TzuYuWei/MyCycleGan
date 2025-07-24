@@ -5,7 +5,7 @@ import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from test_metrics import RainToGTDataset, test_model
-from CycleGANSE import Generator  # 根據你使用的模型架構載入
+from CycleGAN import Generator  # 根據你使用的模型架構載入
 from torchvision.transforms import InterpolationMode
 
 if __name__ == "__main__":
@@ -13,11 +13,11 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # === 資料路徑設定 ===
-    rain_root = r'C:\Users\User\Desktop\CycleGAN+SE_128\test\testA'
-    gt_root = r'C:\Users\User\Desktop\CycleGAN+SE_128\test\testB'
-    model_path = r'C:\Users\User\Desktop\CycleGAN+SE_128\models\checkpoint_epoch100.pth'
-    save_dir = r'C:\Users\User\Desktop\CycleGAN+SE_128\result\test result_128'
-    TXT_dir = r'C:\Users\User\Desktop\CycleGAN+SE_128\result\train_mean'
+    rain_root = r'C:\Users\ericw\Desktop\testA'
+    gt_root = r'C:\Users\ericw\Desktop\testB'
+    model_path = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\models\checkpoint_epoch100.pth'
+    save_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result'
+    TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean'
 
     # === 圖片轉換設定（與訓練一致） ===
     transform = transforms.Compose([

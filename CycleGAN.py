@@ -36,8 +36,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-TXT_dir = r'C:\Users\User\Desktop\CycleGAN_flip_128\result\train_mean'
-save_dir = r'C:\Users\User\Desktop\CycleGAN_flip_128\result\test result_128'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean'
+save_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result'
 model_dir = r'C:\Users\User\Desktop\CycleGAN_flip_128\models'
 loss_dir = r'C:\Users\User\Desktop\CycleGAN_flip_128\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
