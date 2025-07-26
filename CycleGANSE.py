@@ -142,7 +142,7 @@ class ResnetBlock(nn.Module):
 
 # === Generator with RES  ===
 class Generator(nn.Module):
-    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=6):
+    def __init__(self, input_nc=3, output_nc=3, ngf=64, n_blocks=9):
         super(Generator, self).__init__()
 
         # Encoder
