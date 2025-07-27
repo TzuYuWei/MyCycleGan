@@ -36,10 +36,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN+SE_256\result\train_mean'
-save_dir = r'C:\Users\ericw\Desktop\CycleGAN+SE_256\result'
-model_dir = r'C:\Users\User\Desktop\CycleGAN+SE_256\models'
-loss_dir = r'C:\Users\User\Desktop\CycleGAN+SE_256\loss_plot'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN+FCA_256(b4)\result\train_mean'
+save_dir = r'C:\Users\ericw\Desktop\CycleGAN+FCA_256(b4)\result'
+model_dir = r'C:\Users\User\Desktop\CycleGAN+FCA_256(b4)\models'
+loss_dir = r'C:\Users\User\Desktop\CycleGAN+FCA_256(b4)\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
@@ -542,8 +542,8 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    rain_root = r'C:\Users\User\Desktop\CycleGAN+SE_256\train\trainA'
-    sun_root = r'C:\Users\User\Desktop\CycleGAN+SE_256\train\trainB'
+    rain_root = r'C:\Users\User\Desktop\CycleGAN+FCA_256(b4)\train\trainA'
+    sun_root = r'C:\Users\User\Desktop\CycleGAN+FCA_256(b4)\train\trainB'
 
     transform = transforms.Compose([
         transforms.Resize((256, 256), interpolation=InterpolationMode.BILINEAR),
