@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_flip_128\result\train_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_2561\result\train_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
@@ -92,7 +92,7 @@ def edge_iou_opencv(real_img, fake_img):
     return iou_list[0] if batch_size == 1 else iou_list
 
 # === FLOPs and Params ===
-def compute_flops_params(model, input_shape=(1, 3, 128, 128), device='cpu'):
+def compute_flops_params(model, input_shape=(1, 3, 256, 256), device='cpu'):
     dummy_input = torch.randn(input_shape).to(device)
     flops, params = profile(model, inputs=(dummy_input,))
     return flops, params
@@ -125,8 +125,8 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
                 gt_img = gt_img.to(device)
 
                 fake_sunny = generator(rain_img)
-                fake_sunny = F.interpolate(fake_sunny, size=(128, 128), mode='bilinear', align_corners=False)
-                gt_img = F.interpolate(gt_img, size=(128, 128), mode='bilinear', align_corners=False)
+                fake_sunny = F.interpolate(fake_sunny, size=(256, 256), mode='bilinear', align_corners=False)
+                gt_img = F.interpolate(gt_img, size=(256, 256), mode='bilinear', align_corners=False)
                 fake_sunny = fake_sunny.clamp(0.0, 1.0)
                 gt_img = gt_img.clamp(0.0, 1.0)
                 # 🧩 加這段來確保 name 是字串
