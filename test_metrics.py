@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_FCA_256(B4)\result\train_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\CBAM\result\train_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
