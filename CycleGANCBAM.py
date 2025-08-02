@@ -36,10 +36,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN+CBAM_256(b4)\result\train_mean'
-save_dir = r'C:\Users\ericw\Desktop\CycleGAN+CBAM_256(b4)\result'
-model_dir = r'C:\Users\User\Desktop\CycleGAN+CBAM_256(b4)\models'
-loss_dir = r'C:\Users\User\Desktop\CycleGAN+CBAM_256(b4)\loss_plot'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGANCBAM_ALL\result\train_mean'
+save_dir = r'C:\Users\ericw\Desktop\CycleGANCBAM_ALL\result'
+model_dir = r'C:\Users\User\Desktop\CycleGANCBAM_ALL\models'
+loss_dir = r'C:\Users\User\Desktop\CycleGANCBAM_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
