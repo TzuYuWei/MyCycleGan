@@ -36,10 +36,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 
 # 你想要儲存的資料夾路徑
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result\train_mean'
-save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result'
-model_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\models'
-loss_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\loss_plot'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_FCA_ALL\result\train_mean'
+save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_FCA_ALL\result'
+model_dir = r'C:\Users\User\Desktop\CycleGAN_SE_FCA_ALL\models'
+loss_dir = r'C:\Users\User\Desktop\CycleGAN_SE_FCA_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
@@ -68,6 +68,103 @@ class SpectralNormConv2d(nn.Module):
     def forward(self, x):
         return self.conv(x)
     
+# -----------------------------
+# 返回根據方法選的頻率 index
+# -----------------------------
+def get_freq_indices(method='top16'):
+    assert method in ['top1','top2','top4','top8','top16','top32',
+                      'bot1','bot2','bot4','bot8','bot16','bot32',
+                      'low1','low2','low4','low8','low16','low32']
+    num_freq = int(method[3:])
+
+    if 'top' in method:
+        all_top_indices_x = [0,0,6,0,0,1,1,4,5,1,3,0,0,0,3,2,4,6,3,5,5,2,6,5,5,3,3,4,2,2,6,1]
+        all_top_indices_y = [0,1,0,5,2,0,2,0,0,6,0,4,6,3,5,2,6,3,3,3,5,1,1,2,4,2,1,1,3,0,5,3]
+        mapper_x = all_top_indices_x[:num_freq]
+        mapper_y = all_top_indices_y[:num_freq]
+    elif 'low' in method:
+        all_low_indices_x = [0,0,1,1,0,2,2,1,2,0,3,4,0,1,3,0,1,2,3,4,5,0,1,2,3,4,5,6,1,2,3,4]
+        all_low_indices_y = [0,1,0,1,2,0,1,2,2,3,0,0,4,3,1,5,4,3,2,1,0,6,5,4,3,2,1,0,6,5,4,3]
+        mapper_x = all_low_indices_x[:num_freq]
+        mapper_y = all_low_indices_y[:num_freq]
+    elif 'bot' in method:
+        all_bot_indices_x = [6,1,3,3,2,4,1,2,4,4,5,1,4,6,2,5,6,1,6,2,2,4,3,3,5,5,6,2,5,5,3,6]
+        all_bot_indices_y = [6,4,4,6,6,3,1,4,4,5,6,5,2,2,5,1,4,3,5,0,3,1,1,2,4,2,1,1,5,3,3,3]
+        mapper_x = all_bot_indices_x[:num_freq]
+        mapper_y = all_bot_indices_y[:num_freq]
+    else:
+        raise NotImplementedError
+
+    return mapper_x, mapper_y
+
+# -----------------------------
+# 根據頻率 index 建立固定的 DCT filter
+# -----------------------------
+class MultiSpectralDCTLayer(nn.Module):
+    def __init__(self, height, width, mapper_x, mapper_y, channel):
+        super(MultiSpectralDCTLayer, self).__init__()
+        assert len(mapper_x) == len(mapper_y)
+        assert channel % len(mapper_x) == 0, "channel 必須能被 num_freq 整除"
+
+        # 計算好的 DCT filter，作為 buffer 不會參與訓練
+        self.register_buffer('weight', self.get_dct_filter(height, width, mapper_x, mapper_y, channel))
+
+    def forward(self, x):
+        # x: [batch, channel, h, w]
+        x = x * self.weight
+        y = torch.sum(x, dim=[2,3])  # sum over spatial dimensions
+        return y
+
+    def build_filter(self, pos, freq, POS):
+        # DCT basis 計算公式
+        result = math.cos(math.pi * freq * (pos + 0.5) / POS) / math.sqrt(POS)
+        if freq == 0:
+            return result
+        else:
+            return result * math.sqrt(2)
+
+    def get_dct_filter(self, tile_size_x, tile_size_y, mapper_x, mapper_y, channel):
+        dct_filter = torch.zeros(channel, tile_size_x, tile_size_y)
+        c_part = channel // len(mapper_x)
+
+        for i, (u_x, v_y) in enumerate(zip(mapper_x, mapper_y)):
+            for t_x in range(tile_size_x):
+                for t_y in range(tile_size_y):
+                    value = self.build_filter(t_x, u_x, tile_size_x) * self.build_filter(t_y, v_y, tile_size_y)
+                    dct_filter[i * c_part: (i+1)*c_part, t_x, t_y] = value
+        return dct_filter
+
+# -----------------------------
+# FCA 注意力模組
+# -----------------------------
+class MultiSpectralAttentionLayer(nn.Module):
+    def __init__(self, channel, dct_h=7, dct_w=7, reduction=16, freq_sel_method='top16'):
+        super(MultiSpectralAttentionLayer, self).__init__()
+        mapper_x, mapper_y = get_freq_indices(freq_sel_method)
+        self.dct_layer = MultiSpectralDCTLayer(dct_h, dct_w, mapper_x, mapper_y, channel)
+
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+        self.dct_h = dct_h
+        self.dct_w = dct_w
+
+    def forward(self, x):
+        n, c, h, w = x.shape
+
+        # 保證池化到固定大小，跟 DCT 權重對齊
+        if h != self.dct_h or w != self.dct_w:
+            x_pooled = F.adaptive_avg_pool2d(x, (self.dct_h, self.dct_w))
+        else:
+            x_pooled = x
+
+        y = self.dct_layer(x_pooled)           # shape: [batch, channel]
+        y = self.fc(y).view(n, c, 1, 1)        # channel attention
+        return y
+
 # === SE Block ===
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=16):
@@ -85,64 +182,32 @@ class SELayer(nn.Module):
         y = self.avg_pool(x).view(b, c)
         y = self.fc(y).view(b, c, 1, 1)
         return y
-    
-class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, ratio=16):
-        super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
 
-        self.fc = nn.Sequential(nn.Conv2d(in_planes, in_planes // 16, 1, bias=False),
-                                nn.ReLU(),
-                                nn.Conv2d(in_planes // 16, in_planes, 1, bias=False))
+class SEFCA(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(SEFCA, self).__init__()
+        self.se = SELayer(channel, reduction)
+        self.fca = MultiSpectralAttentionLayer(
+            channel, dct_h=7, dct_w=7, reduction=16, freq_sel_method='top16'
+        )
+        self.fuse_conv = nn.Conv2d(2 * channel, channel, kernel_size=1, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        avg_out = self.fc(self.avg_pool(x))
-        max_out = self.fc(self.max_pool(x))
-        out = avg_out + max_out
-        return self.sigmoid(out)
-
-
-class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
-        super(SpatialAttention, self).__init__()
-
-        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x = torch.cat([avg_out, max_out], dim=1)
-        x = self.conv1(x)
-        return self.sigmoid(x)
-    
-class SECBAM(nn.Module):
-    def __init__(self, in_planes, ratio=16, kernel_size=7):
-        super(SECBAM, self).__init__()
-        self.ca = ChannelAttention(in_planes, ratio)
-        self.sa = SpatialAttention(kernel_size)
-        self.se = SELayer(in_planes, ratio)
-        self.fuse_conv = nn.Conv2d(2 * in_planes, in_planes, kernel_size=1, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
+        fca_out = self.fca(x)
         se_out = self.se(x)
-        ca_out = self.ca(x)
-        cat = torch.cat([se_out, ca_out], dim=1)  # (B, 2C, 1, 1)
+        cat = torch.cat([fca_out, se_out], dim=1)  # (B, 2C, 1, 1)
         fused_channel = self.sigmoid(self.fuse_conv(cat))  # (B, C, 1, 1)
         out = x * fused_channel
-        out = out * self.sa(out)
         return out
-    
+
 class ResnetBlock(nn.Module):
     """ResNet block with configurable normalization, dropout, and padding."""
 
     def __init__(self, dim, padding_type='reflect', norm_layer=nn.InstanceNorm2d, use_dropout=False, use_bias=True):
         super(ResnetBlock, self).__init__()
         self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
-        self.attention = SECBAM(dim)
+        self.attention = SEFCA(dim)
 
     def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         conv_block = []
@@ -426,11 +491,6 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             real_A = real_A.to(device)
             real_B = real_B.to(device)
 
-            # ----------------------------
-            torch.cuda.synchronize()
-            start_g = time.time()
-            # ----------------------------
-
             # Generator Forward
             fake_B = generator_A2B(real_A)
             fake_A = generator_B2A(real_B)
@@ -475,15 +535,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_G.backward()
             optimizer_G.step()
 
-            # ----------------------------
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Generator step time: {time.time() - start_g:.2f} 秒")
-            # ----------------------------
-
             # Update Discriminator A
-            torch.cuda.synchronize()
-            start_d_a = time.time()
-
             optimizer_D_A.zero_grad()
             fake_A_for_D = fake_A_pool.query(fake_A.detach())
             loss_D_A_real = criterion_gan(discriminator_A(real_A), torch.ones_like(discriminator_A(real_A)))
@@ -492,13 +544,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_D_A.backward()
             optimizer_D_A.step()
 
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Discriminator A step time: {time.time() - start_d_a:.2f} 秒")
-
             # Update Discriminator B
-            torch.cuda.synchronize()
-            start_d_b = time.time()
-
             optimizer_D_B.zero_grad()
             fake_B_for_D = fake_B_pool.query(fake_B.detach())
             loss_D_B_real = criterion_gan(discriminator_B(real_B), torch.ones_like(discriminator_B(real_B)))
@@ -506,9 +552,6 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_D_B = 0.5 * (loss_D_B_real + loss_D_B_fake)
             loss_D_B.backward()
             optimizer_D_B.step()
-
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Discriminator B step time: {time.time() - start_d_b:.2f} 秒")
 
         scheduler_G.step()
         scheduler_D_A.step()
@@ -561,7 +604,7 @@ if __name__ == "__main__":
     for city, count in count_images_by_city(train_dataset.images_B).items():
         print(f"  - {city}: {count} 張")
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
 
     generator_A2B = Generator().to(device)
     generator_B2A = Generator().to(device)

@@ -426,11 +426,6 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             real_A = real_A.to(device)
             real_B = real_B.to(device)
 
-            # ----------------------------
-            torch.cuda.synchronize()
-            start_g = time.time()
-            # ----------------------------
-
             # Generator Forward
             fake_B = generator_A2B(real_A)
             fake_A = generator_B2A(real_B)
@@ -475,15 +470,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_G.backward()
             optimizer_G.step()
 
-            # ----------------------------
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Generator step time: {time.time() - start_g:.2f} 秒")
-            # ----------------------------
-
             # Update Discriminator A
-            torch.cuda.synchronize()
-            start_d_a = time.time()
-
             optimizer_D_A.zero_grad()
             fake_A_for_D = fake_A_pool.query(fake_A.detach())
             loss_D_A_real = criterion_gan(discriminator_A(real_A), torch.ones_like(discriminator_A(real_A)))
@@ -492,13 +479,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_D_A.backward()
             optimizer_D_A.step()
 
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Discriminator A step time: {time.time() - start_d_a:.2f} 秒")
-
             # Update Discriminator B
-            torch.cuda.synchronize()
-            start_d_b = time.time()
-
             optimizer_D_B.zero_grad()
             fake_B_for_D = fake_B_pool.query(fake_B.detach())
             loss_D_B_real = criterion_gan(discriminator_B(real_B), torch.ones_like(discriminator_B(real_B)))
@@ -506,9 +487,6 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_D_B = 0.5 * (loss_D_B_real + loss_D_B_fake)
             loss_D_B.backward()
             optimizer_D_B.step()
-
-            torch.cuda.synchronize()
-            print(f"[Step {i}] Discriminator B step time: {time.time() - start_d_b:.2f} 秒")
 
         scheduler_G.step()
         scheduler_D_A.step()
@@ -561,7 +539,7 @@ if __name__ == "__main__":
     for city, count in count_images_by_city(train_dataset.images_B).items():
         print(f"  - {city}: {count} 張")
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
 
     generator_A2B = Generator().to(device)
     generator_B2A = Generator().to(device)
