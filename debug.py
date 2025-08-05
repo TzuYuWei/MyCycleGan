@@ -38,8 +38,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 # 你想要儲存的資料夾路徑
 TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result\train_mean'
 save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result'
-model_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\models'
-loss_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\loss_plot'
+model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_ALL\models'
+loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
@@ -532,8 +532,8 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    rain_root = r'C:\Users\User\Desktop\雨天\leftImg8bit_rain\train'
-    sun_root = r'C:\Users\User\Desktop\雨天\leftImg8bit_rain\GT'
+    rain_root = r'C:\Users\user\Desktop\leftImg8bit_trainval_rain\leftImg8bit_rain\train'
+    sun_root = r'C:\Users\user\Desktop\leftImg8bit_trainval_rain\leftImg8bit_rain\GT'
 
     transform = transforms.Compose([
         transforms.Resize((256, 256), interpolation=InterpolationMode.BILINEAR),
@@ -561,7 +561,7 @@ if __name__ == "__main__":
     for city, count in count_images_by_city(train_dataset.images_B).items():
         print(f"  - {city}: {count} 張")
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
 
     generator_A2B = Generator().to(device)
     generator_B2A = Generator().to(device)

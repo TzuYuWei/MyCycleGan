@@ -510,8 +510,8 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    rain_root = r'C:\Users\User\Desktop\雨天\leftImg8bit_rain\train'
-    sun_root = r'C:\Users\User\Desktop\雨天\leftImg8bit_rain\GT'
+    rain_root = r'C:\Users\user\Desktop\leftImg8bit_trainval_rain\leftImg8bit_rain\train'
+    sun_root = r'C:\Users\user\Desktop\leftImg8bit_trainval_rain\leftImg8bit_rain\GT'
 
     transform = transforms.Compose([
         transforms.Resize((256, 256), interpolation=InterpolationMode.BILINEAR),
