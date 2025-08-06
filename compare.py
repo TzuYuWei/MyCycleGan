@@ -107,12 +107,12 @@ def compare_by_specs(file1, file2, output_csv, method1, method2):
     print(f'最終比較結果已寫入：{output_csv}')
 
 # === 執行區 ===
-file1 = r'C:\Users\ericw\Desktop\口試後實驗數據\CycleGAN_SE_ALL\result\train_mean\test_results_origin.txt'      # 方法1的結果
-file2 = r'C:\Users\ericw\Desktop\口試後實驗數據\CycleGAN_FCA_ALL\result\train_mean\test_results_origin.txt'     # 方法2的結果
-output_csv = r'C:\Users\ericw\Desktop\口試後實驗數據\SEVSFCA_ALL_compare.csv'
+file1 = r'C:\Users\ericw\Desktop\口試後實驗數據\CycleGAN_FCA_ALL\result\train_mean\test_results_origin.txt'      # 方法1的結果
+file2 = r'C:\Users\ericw\Desktop\口試後實驗數據\CycleGAN_CBAM_ALL\result\test_mean\test_results_origin.txt'     # 方法2的結果
+output_csv = r'C:\Users\ericw\Desktop\口試後實驗數據\FCAVSCBAM_ALL_compare.csv'
 
 # 自訂方法名稱
-method1 = 'SE'
-method2 = 'FCA'
+method1 = 'FCA'
+method2 = 'CBAM'
 
 compare_by_specs(file1, file2, output_csv, method1=method1, method2=method2)
