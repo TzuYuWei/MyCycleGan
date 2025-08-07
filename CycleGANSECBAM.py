@@ -38,8 +38,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 # 你想要儲存的資料夾路徑
 TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result\train_mean'
 save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result'
-model_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\models'
-loss_dir = r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\loss_plot'
+model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_ALL\models'
+loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
