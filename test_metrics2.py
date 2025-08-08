@@ -17,42 +17,44 @@ import numpy as np
 from thop import profile
 TXT_dir = r'C:\Users\ericw\Desktop\口試後霧天實驗數據\CycleGAN_CBAM_ALL\result\test_mean'
 
-# === 測試資料集 ===
-class RainToGTDataset(Dataset):
-    def __init__(self, rain_root, gt_root, transform=None):
-        self.rain_paths = []
+class FoggyToGTDataset(Dataset):
+    def __init__(self, foggy_root, gt_root, transform=None):
+        self.foggy_paths = []
         self.gt_paths = []
         self.transform = transform
 
-        # rain_root / gt_root 已是單一資料夾
-        rain_files = sorted([f for f in os.listdir(rain_root) if f.endswith('.png')])
-        for rain_name in rain_files:
-            if "_rain_" in rain_name:
-                base_name = rain_name.split("_rain_")[0] + ".png"
+        foggy_files = sorted([f for f in os.listdir(foggy_root) if f.endswith('.png')])
+        for foggy_name in foggy_files:
+            if "_foggy_" in foggy_name:
+                base_name = foggy_name.split("_foggy_")[0] + ".png"
             else:
-                base_name = rain_name  # fallback
+                base_name = foggy_name
 
-            rain_path = os.path.join(rain_root, rain_name)
+            foggy_path = os.path.join(foggy_root, foggy_name)
             gt_path = os.path.join(gt_root, base_name)
 
             if os.path.exists(gt_path):
-                self.rain_paths.append(rain_path)
+                self.foggy_paths.append(foggy_path)
                 self.gt_paths.append(gt_path)
             else:
                 print(f"❌ 無法配對 GT：{gt_path}")
 
+        # 保留相容性
+        self.rain_paths = self.foggy_paths
+
     def __len__(self):
-        return len(self.rain_paths)
+        return len(self.foggy_paths)
 
     def __getitem__(self, idx):
-        rain_img = Image.open(self.rain_paths[idx]).convert("RGB")
+        foggy_img = Image.open(self.foggy_paths[idx]).convert("RGB")
         gt_img = Image.open(self.gt_paths[idx]).convert("RGB")
         if self.transform:
-            rain_img = self.transform(rain_img)
+            foggy_img = self.transform(foggy_img)
             gt_img = self.transform(gt_img)
-        name = os.path.basename(self.rain_paths[idx])
+        name = os.path.basename(self.foggy_paths[idx])
         gt_name = os.path.basename(self.gt_paths[idx])
-        return rain_img, gt_img, name, gt_name
+        return foggy_img, gt_img, name, gt_name
+
 
 # === Perceptual Loss ===
 class VGGPerceptualLoss(torch.nn.Module):
@@ -103,8 +105,8 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
     os.makedirs(TXT_dir, exist_ok=True)
     
     # 根據第一張圖片的路徑來決定是 flip 還是 origin
-    first_rain_path = dataloader.dataset.rain_paths[0]
-    txt_subname = "flip" if "flip" in first_rain_path else "origin"
+    first_foggy_path = dataloader.dataset.rain_paths[0]
+    txt_subname = "flip" if "flip" in first_foggy_path else "origin"
     result_txt = os.path.join(TXT_dir, f"test_results_{txt_subname}.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
