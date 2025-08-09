@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\口試後霧天實驗數據\CycleGAN_CBAM_ALL\result\test_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_FCA_SE_ALL\result\test_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
