@@ -128,11 +128,11 @@ class DynamicFusion(nn.Module):
         # GAP + MLP
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(in_planes, in_planes // ratio, bias=False),
+            nn.Linear(2 * in_planes, in_planes // ratio, bias=False),
             nn.ReLU(inplace=True),
             nn.Linear(in_planes // ratio, in_planes // (ratio * 2), bias=False),
             nn.ReLU(inplace=True),
-            nn.Linear(in_planes // (ratio * 2), 2, bias=False)  # 最終輸出 SE 和 CBAM 的權重
+            nn.Linear(in_planes // (ratio * 2), 2, bias=False)
         )
 
     def forward(self, x):
