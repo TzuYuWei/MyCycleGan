@@ -4,12 +4,12 @@ import pandas as pd
 import os
 
 # === 檔案路徑 ===
-base_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_SE_ALL\result\test_mean'
+base_dir = r'C:\Users\ericw\Desktop\CycleGAN_NON_ALL\result\test_mean'
 origin_txt = os.path.join(base_dir, 'test_results_origin.txt')
 flip_txt = os.path.join(base_dir, 'test_results_flip.txt')
 
 # === 正則表達式模式 ===
-pattern = r'SSIM:\s*([\d.]+),\s*PSNR:\s*([\d.]+)\s*dB,\s*LPIPS:\s*([\d.]+),\s*PL:\s*([\d.]+),\s*EDGE IoU:\s*([\d.]+),\s*mIoU:\s*([\d.]+)'
+pattern = r'SSIM:\s*([\d.]+),\s*PSNR:\s*([\d.]+)\s*dB,\s*LPIPS:\s*([\d.]+),\s*PL:\s*([\d.]+),\s*EDGE IoU:\s*([\d.]+)'
 
 def parse_txt(txt_path):
     data = []
@@ -26,7 +26,7 @@ def parse_txt(txt_path):
     if not data:
         print(f"⚠️ 沒有從 {txt_path} 解析到數據，請確認格式")
         return pd.DataFrame()
-    df = pd.DataFrame(data, columns=['SSIM', 'PSNR', 'LPIPS', 'PL', 'EDGE_IoU', 'mIoU'])
+    df = pd.DataFrame(data, columns=['SSIM', 'PSNR', 'LPIPS', 'PL', 'EDGE_IoU'])
     return df
 
 # === 分別解析 ===

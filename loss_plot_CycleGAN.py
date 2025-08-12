@@ -6,7 +6,7 @@ loss_g = []
 loss_d_a = []
 loss_d_b = []
 
-with open(r'C:\Users\ericw\Desktop\CycleGAN_FCA_SE_ALL\loss_plot\train_loss_log.csv', "r") as f:
+with open(r'C:\Users\ericw\Desktop\CycleGAN_NON_ALL\loss_plot\train_loss_log.csv', "r") as f:
     for line in f:
         if line.strip() == "":
             continue  # 跳過空行
@@ -37,5 +37,5 @@ plt.title("Training Loss Curve")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(r"C:\Users\ericw\Desktop\CycleGAN_FCA_SE_ALL\loss_plot\loss_curve.png")
+plt.savefig(r"C:\Users\ericw\Desktop\CycleGAN_NON_ALL\loss_plot\loss_curve.png")
 plt.show()
