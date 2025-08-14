@@ -38,8 +38,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 # 你想要儲存的資料夾路徑
 TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result\train_mean'
 save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result'
-model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP_ALL\models'
-loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP_ALL\loss_plot'
+model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP2_ALL\models'
+loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP2_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
@@ -419,15 +419,17 @@ class ImagePool():
         return return_images
     
 
-# === 訓練函數（不含 val） ===
-def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B, dataloader, device, fake_A_pool, fake_B_pool):
-    criterion_gan = nn.MSELoss()  # 對抗損失
-    criterion_cycle = nn.L1Loss()  # 循環一致性損失
-    criterion_perceptual = nn.L1Loss()  # 感知損失
-    criterion_identity = nn.L1Loss()  # 身份損失
+def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B,
+                            dataloader, device, fake_A_pool, fake_B_pool,
+                            resume_path=None):
+
+    criterion_gan = nn.MSELoss()
+    criterion_cycle = nn.L1Loss()
+    criterion_perceptual = nn.L1Loss()
+    criterion_identity = nn.L1Loss()
 
     vgg = VGGFeatureExtractor().to(device)
-    tv_loss = TVLoss(tv_loss_weight=0.01).to(device)  # 初始化 TVLoss
+    tv_loss = TVLoss(tv_loss_weight=0.01).to(device)
 
     optimizer_G = optim.Adam(
         itertools.chain(generator_A2B.parameters(), generator_B2A.parameters()),
@@ -440,39 +442,59 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
     scheduler_D_A = torch.optim.lr_scheduler.StepLR(optimizer_D_A, step_size=30, gamma=0.5)
     scheduler_D_B = torch.optim.lr_scheduler.StepLR(optimizer_D_B, step_size=30, gamma=0.5)
 
+    # ==== 恢復訓練 ====
+    start_epoch = 0
+    if resume_path and os.path.exists(resume_path):
+        print(f"🔄 載入 checkpoint: {resume_path}")
+        checkpoint = torch.load(resume_path, map_location=device)
+        generator_A2B.load_state_dict(checkpoint['generator_A2B'])
+        generator_B2A.load_state_dict(checkpoint['generator_B2A'])
+        discriminator_A.load_state_dict(checkpoint['discriminator_A'])
+        discriminator_B.load_state_dict(checkpoint['discriminator_B'])
+        optimizer_G.load_state_dict(checkpoint['optimizer_G'])
+        optimizer_D_A.load_state_dict(checkpoint['optimizer_D_A'])
+        optimizer_D_B.load_state_dict(checkpoint['optimizer_D_B'])
+        scheduler_G.load_state_dict(checkpoint['scheduler_G'])
+        scheduler_D_A.load_state_dict(checkpoint['scheduler_D_A'])
+        scheduler_D_B.load_state_dict(checkpoint['scheduler_D_B'])
+        start_epoch = checkpoint['epoch'] + 1
+        print(f"✅ 從 epoch {start_epoch} 繼續訓練")
+
     start_time = time.time()
 
-    for epoch in range(150):
+    for epoch in range(start_epoch, 150):
         for i, (real_A, real_B) in enumerate(dataloader):
             real_A = real_A.to(device)
             real_B = real_B.to(device)
 
-            # Generator Forward
+            # ====== Generator ======
             fake_B = generator_A2B(real_A)
             fake_A = generator_B2A(real_B)
             recon_A = generator_B2A(fake_B)
             recon_B = generator_A2B(fake_A)
 
             optimizer_G.zero_grad()
-            
+
             # GAN loss
             loss_GAN_A2B = criterion_gan(discriminator_B(fake_B), torch.ones_like(discriminator_B(fake_B)))
             loss_GAN_B2A = criterion_gan(discriminator_A(fake_A), torch.ones_like(discriminator_A(fake_A)))
-            
+
             # Cycle loss
             loss_cycle = criterion_cycle(recon_A, real_A) + criterion_cycle(recon_B, real_B)
-            
+
             # Identity loss
             identity_A = generator_B2A(real_A)
             identity_B = generator_A2B(real_B)
             loss_identity = criterion_identity(identity_A, real_A) + criterion_identity(identity_B, real_B)
-            
+
             # Perceptual loss
             feat_real_A = vgg(real_A)
             feat_fake_B = vgg(fake_B)
             feat_recon_A = vgg(recon_A)
-            perceptual_loss = sum([criterion_perceptual(r, f) + criterion_perceptual(r, c)
-                                for r, f, c in zip(feat_real_A, feat_fake_B, feat_recon_A)])
+            perceptual_loss = sum([
+                criterion_perceptual(r, f) + criterion_perceptual(r, c)
+                for r, f, c in zip(feat_real_A, feat_fake_B, feat_recon_A)
+            ])
 
             # 頻率損失 + TV 損失
             freq_loss_val = frequency_loss(real_A, fake_B)
@@ -481,7 +503,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             # Total generator loss
             loss_G = (
                 loss_GAN_A2B + loss_GAN_B2A +
-                10 * loss_cycle + 
+                10 * loss_cycle +
                 0.5 * loss_identity +
                 0.1 * perceptual_loss +
                 min(0.1 + epoch * 0.01, 0.5) * freq_loss_val +
@@ -491,7 +513,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_G.backward()
             optimizer_G.step()
 
-            # Update Discriminator A
+            # ====== Discriminator A ======
             optimizer_D_A.zero_grad()
             fake_A_for_D = fake_A_pool.query(fake_A.detach())
             loss_D_A_real = criterion_gan(discriminator_A(real_A), torch.ones_like(discriminator_A(real_A)))
@@ -500,7 +522,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
             loss_D_A.backward()
             optimizer_D_A.step()
 
-            # Update Discriminator B
+            # ====== Discriminator B ======
             optimizer_D_B.zero_grad()
             fake_B_for_D = fake_B_pool.query(fake_B.detach())
             loss_D_B_real = criterion_gan(discriminator_B(real_B), torch.ones_like(discriminator_B(real_B)))
@@ -513,19 +535,28 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
         scheduler_D_A.step()
         scheduler_D_B.step()
 
-        print(f"Epoch [{epoch+1}/100] | G Loss: {loss_G.item():.4f} | D_A: {loss_D_A.item():.4f} | D_B: {loss_D_B.item():.4f}")
+        print(f"Epoch [{epoch+1}/150] | G Loss: {loss_G.item():.4f} | D_A: {loss_D_A.item():.4f} | D_B: {loss_D_B.item():.4f}")
         with open(loss_csv_path, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([epoch+1, loss_G.item(), loss_D_A.item(), loss_D_B.item()])
 
+        # 存 checkpoint
+        checkpoint_path = os.path.join(model_dir, f"checkpoint_epoch{epoch+1}.pth")
         torch.save({
+            'epoch': epoch,
             'generator_A2B': generator_A2B.state_dict(),
             'generator_B2A': generator_B2A.state_dict(),
             'discriminator_A': discriminator_A.state_dict(),
-            'discriminator_B': discriminator_B.state_dict()
-        }, os.path.join(model_dir, f"checkpoint_epoch{epoch+1}.pth"))
-        elapsed_time = time.time() - start_time  # 計算總時間    
-        print(f"✔ 模型已儲存於 checkpoint_epoch{epoch+1}.pth")
+            'discriminator_B': discriminator_B.state_dict(),
+            'optimizer_G': optimizer_G.state_dict(),
+            'optimizer_D_A': optimizer_D_A.state_dict(),
+            'optimizer_D_B': optimizer_D_B.state_dict(),
+            'scheduler_G': scheduler_G.state_dict(),
+            'scheduler_D_A': scheduler_D_A.state_dict(),
+            'scheduler_D_B': scheduler_D_B.state_dict()
+        }, checkpoint_path)
+        elapsed_time = time.time() - start_time
+        print(f"✔ 模型已儲存於 {checkpoint_path}")
         print(f"Epoch [{epoch+1}/150] 訓練時間: {elapsed_time:.2f} 秒")
 
 if __name__ == "__main__":
