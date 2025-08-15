@@ -400,7 +400,7 @@ class ImagePool():
 
 def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discriminator_B,
                             dataloader, device, fake_A_pool, fake_B_pool,
-                            resume_path=None):
+                            resume_path=r'C:\Users\User\Desktop\CycleGAN_SE_CBAM_ALL\models\checkpoint_epoch144.pth'):
 
     criterion_gan = nn.MSELoss()
     criterion_cycle = nn.L1Loss()
