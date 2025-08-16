@@ -38,8 +38,8 @@ vgg = vgg19(weights=VGG19_Weights.DEFAULT).features.to(device)
 # 你想要儲存的資料夾路徑
 TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result\train_mean'
 save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_ALL\result'
-model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP2_ALL\models'
-loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP2_ALL\loss_plot'
+model_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP3_ALL\models'
+loss_dir = r'C:\Users\user\Desktop\CycleGAN_SE_CBAM_MLP3_ALL\loss_plot'
 loss_csv_path = os.path.join(loss_dir, "train_loss_log.csv")
 
 # 可學習的頻率索引
@@ -125,8 +125,9 @@ class DynamicFusion(nn.Module):
         self.sa = SpatialAttention(kernel_size)
         self.se = SELayer(in_planes, ratio)
 
-        # GAP + MLP
+        # GAP + GMP + MLP
         self.gap = nn.AdaptiveAvgPool2d(1)
+        self.gmp = nn.AdaptiveMaxPool2d(1)
         self.fc = nn.Sequential(
             nn.Linear(2 * in_planes, in_planes // ratio, bias=False),
             nn.ReLU(inplace=True),
@@ -143,14 +144,14 @@ class DynamicFusion(nn.Module):
         cbam_out = x * self.ca(x)
         cbam_out = cbam_out * self.sa(cbam_out)
 
-        # 分別 GAP
+        # 分別 GAP & GMP
         gap_se = self.gap(se_out).view(b, c)      # [B, C]
-        gap_cbam = self.gap(cbam_out).view(b, c)  # [B, C]
+        gmp_cbam = self.gmp(cbam_out).view(b, c)  # [B, C]
 
-        # 拼接兩個 GAP
-        gap_cat = torch.cat([gap_se, gap_cbam], dim=1)  # [B, 2C]
+        # 拼接 GAP + GMP
+        cat_feat = torch.cat([gap_se, gmp_cbam], dim=1)  # [B, 2C]
 
-        weights = F.softmax(self.fc(gap_cat), dim=1)    # [B, 2]
+        weights = F.softmax(self.fc(cat_feat), dim=1)    # [B, 2]
         alpha, beta = weights[:, 0].view(b, 1, 1, 1), weights[:, 1].view(b, 1, 1, 1)
 
         out = alpha * se_out + beta * cbam_out
@@ -539,25 +540,25 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
         with open(loss_csv_path, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([epoch+1, loss_G.item(), loss_D_A.item(), loss_D_B.item()])
-
-        # 存 checkpoint
-        checkpoint_path = os.path.join(model_dir, f"checkpoint_epoch{epoch+1}.pth")
-        torch.save({
-            'epoch': epoch,
-            'generator_A2B': generator_A2B.state_dict(),
-            'generator_B2A': generator_B2A.state_dict(),
-            'discriminator_A': discriminator_A.state_dict(),
-            'discriminator_B': discriminator_B.state_dict(),
-            'optimizer_G': optimizer_G.state_dict(),
-            'optimizer_D_A': optimizer_D_A.state_dict(),
-            'optimizer_D_B': optimizer_D_B.state_dict(),
-            'scheduler_G': scheduler_G.state_dict(),
-            'scheduler_D_A': scheduler_D_A.state_dict(),
-            'scheduler_D_B': scheduler_D_B.state_dict()
-        }, checkpoint_path)
+        if (epoch + 1) % 20 == 0:
+            # 存 checkpoint
+            checkpoint_path = os.path.join(model_dir, f"checkpoint_epoch{epoch+1}.pth")
+            torch.save({
+                'epoch': epoch,
+                'generator_A2B': generator_A2B.state_dict(),
+                'generator_B2A': generator_B2A.state_dict(),
+                'discriminator_A': discriminator_A.state_dict(),
+                'discriminator_B': discriminator_B.state_dict(),
+                'optimizer_G': optimizer_G.state_dict(),
+                'optimizer_D_A': optimizer_D_A.state_dict(),
+                'optimizer_D_B': optimizer_D_B.state_dict(),
+                'scheduler_G': scheduler_G.state_dict(),
+                'scheduler_D_A': scheduler_D_A.state_dict(),
+                'scheduler_D_B': scheduler_D_B.state_dict()
+            }, checkpoint_path)
+            print(f"✔ 模型已儲存於 {checkpoint_path}")
         elapsed_time = time.time() - start_time
-        print(f"✔ 模型已儲存於 {checkpoint_path}")
-        print(f"Epoch [{epoch+1}/150] 訓練時間: {elapsed_time:.2f} 秒")
+        print(f"Epoch [{epoch+1}/100] 訓練時間: {elapsed_time:.2f} 秒")
 
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
