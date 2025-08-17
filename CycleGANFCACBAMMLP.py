@@ -617,7 +617,7 @@ def train_cyclegan_unpaired(generator_A2B, generator_B2A, discriminator_A, discr
         scheduler_D_A.step()
         scheduler_D_B.step()
 
-        print(f"Epoch [{epoch+1}/150] | G Loss: {loss_G.item():.4f} | D_A: {loss_D_A.item():.4f} | D_B: {loss_D_B.item():.4f}")
+        print(f"Epoch [{epoch+1}/100] | G Loss: {loss_G.item():.4f} | D_A: {loss_D_A.item():.4f} | D_B: {loss_D_B.item():.4f}")
         with open(loss_csv_path, mode='a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([epoch+1, loss_G.item(), loss_D_A.item(), loss_D_B.item()])
