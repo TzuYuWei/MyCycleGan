@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_SE_ALL\result\test_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_CBAM_C\result\test_mean'
 
 class FoggyToGTDataset(Dataset):
     def __init__(self, foggy_root, gt_root, transform=None):
@@ -113,7 +113,7 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
     jaccard = JaccardIndex(task="binary").to(device)
 
-    total_ssim = total_psnr = total_lpips = total_pl = total_edge_iou = total_miou = 0
+    total_ssim = total_psnr = total_lpips = total_pl = total_edge_iou = 0
 
     # 計算 FLOPs 和參數量
     flops, params = compute_flops_params(generator, device=device)
@@ -151,27 +151,12 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
                 pl_val = perceptual_loss_fn(fake_sunny, gt_img).item()
                 edge_val = edge_iou_opencv(gt_img, fake_sunny)
 
-                pred_bin = (fake_sunny.mean(dim=1, keepdim=True) > 0.5).int()
-                target_bin = (gt_img.mean(dim=1, keepdim=True) > 0.5).int()
-                miou_val = jaccard(pred_bin, target_bin).item()
-
                 total_ssim += ssim_val
                 total_psnr += psnr_val
                 total_lpips += lpips_val
                 total_pl += pl_val
                 total_edge_iou += edge_val
-                total_miou += miou_val
 
                 # 儲存指標 log
                 print(f"[配對] {name} ➜ {gt_name}")
-                log_file.write(f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}, mIoU: {miou_val:.4f}\n")
-'''
-        n = len(dataloader)
-        print("===== 評估指標結果（平均） =====")
-        print(f"SSIM: {total_ssim / n:.4f}")
-        print(f"PSNR: {total_psnr / n:.2f} dB")
-        print(f"LPIPS: {total_lpips / n:.4f}")
-        print(f"Perceptual Loss: {total_pl / n:.4f}")
-        print(f"EDGE IoU (OpenCV): {total_edge_iou / n:.4f}")
-        print(f"mIoU: {total_miou / n:.4f}")
-'''
+                log_file.write(f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}\n")
