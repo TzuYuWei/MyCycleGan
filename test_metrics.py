@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_FCA_CBAM_C\result\test_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result\test_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
@@ -66,7 +66,7 @@ class VGGPerceptualLoss(torch.nn.Module):
     def forward(self, x, y):
         return F.l1_loss(self.vgg(x), self.vgg(y))
 
-# === OpenCV Edge IoU ===
+# === Edge IoU ===
 def edge_iou_opencv(real_img, fake_img):
     if real_img.dim() == 3:
         real_img = real_img.unsqueeze(0)

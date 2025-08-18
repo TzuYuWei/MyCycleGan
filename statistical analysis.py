@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # === 檔案路徑 ===
-base_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_ALL\result\test_mean'
+base_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result\test_mean'
 origin_txt = os.path.join(base_dir, 'test_results_origin.txt')
 flip_txt = os.path.join(base_dir, 'test_results_flip.txt')
 

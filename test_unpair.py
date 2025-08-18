@@ -6,7 +6,7 @@ import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from test_metrics import RainToGTDataset, test_model
-from CycleGANFCACBAMC import Generator  # 根據你使用的模型架構載入
+from CycleGANSECBAMMLP import Generator  # 根據你使用的模型架構載入
 from torchvision.transforms import InterpolationMode
 
 if __name__ == "__main__":
@@ -16,9 +16,9 @@ if __name__ == "__main__":
     # === 資料路徑設定 ===
     rain_root = r'C:\Users\ericw\Desktop\testA'
     gt_root = r'C:\Users\ericw\Desktop\testB'
-    model_path = r'C:\Users\ericw\Desktop\CycleGAN_FCA_CBAM_C\models\checkpoint_epoch100.pth'
-    save_dir = r'C:\Users\ericw\Desktop\CycleGAN_FCA_CBAM_C\result'
-    TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_FCA_CBAM_C\result\test_mean'
+    model_path = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\models\checkpoint_epoch100.pth'
+    save_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result'
+    TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result\test_mean'
 
     # === 圖片轉換設定 ===
     transform = transforms.Compose([
