@@ -4,8 +4,8 @@ import pandas as pd
 import os
 
 # === 檔案路徑 ===
-base_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result\test_mean'
-origin_txt = os.path.join(base_dir, 'test_results_origin.txt')
+base_dir = r'C:\Users\ericw\Desktop\SECBAM'
+origin_txt = os.path.join(base_dir, 'metrics_results.txt')
 flip_txt = os.path.join(base_dir, 'test_results_flip.txt')
 
 # === 正則表達式模式 ===
@@ -60,11 +60,13 @@ combined_stats = add_stats(combined_df, 'combined')
 
 # === 儲存 CSV ===
 if not origin_stats.empty:
-    origin_stats.to_csv(os.path.join(base_dir, 'stat_results_origin.csv'), encoding='utf-8-sig')
-    print("✅ 已儲存 stat_results_origin.csv")
+    origin_stats.to_csv(os.path.join(base_dir, 'stat_results_70.csv'), encoding='utf-8-sig')
+    print("✅ 已儲存 stat_results_70.csv")
 if not flip_stats.empty:
     flip_stats.to_csv(os.path.join(base_dir, 'stat_results_flip.csv'), encoding='utf-8-sig')
     print("✅ 已儲存 stat_results_flip.csv")
+    '''''
 if not combined_stats.empty:
     combined_stats.to_csv(os.path.join(base_dir, 'stat_results_combined.csv'), encoding='utf-8-sig')
     print("✅ 已儲存 stat_results_combined.csv")
+    '''''

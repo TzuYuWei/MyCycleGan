@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_CBAM_C\result\test_mean'
+TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_SE_CBAM_93\result\test_mean'
 
 class FoggyToGTDataset(Dataset):
     def __init__(self, foggy_root, gt_root, transform=None):

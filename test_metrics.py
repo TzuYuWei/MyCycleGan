@@ -15,7 +15,6 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 from thop import profile
-TXT_dir = r'C:\Users\ericw\Desktop\CycleGAN_SE_CBAM_MLP2\result\test_mean'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
@@ -105,7 +104,7 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
     # 根據第一張圖片的路徑來決定是 flip 還是 origin
     first_rain_path = dataloader.dataset.rain_paths[0]
     txt_subname = "flip" if "flip" in first_rain_path else "origin"
-    result_txt = os.path.join(TXT_dir, f"test_results_{txt_subname}.txt")
+    result_txt = os.path.join(TXT_dir, f"test_results_93.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)

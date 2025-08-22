@@ -4,22 +4,22 @@ import shutil
 import pandas as pd
 
 # ====== 可調整參數 ======
-txt1 = r"C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_SE_CBAM_ALL\result\test_mean\test_results_origin.txt"
+txt1 = r"C:\Users\ericw\Desktop\SECBAM\result\test_mean\test_results_93.txt"
 txt2 = r"C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_ALL\result\train_mean\test_results_origin.txt"
-img_dir1 = r"C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_SE_CBAM_ALL\result\origin"
+img_dir1 = r"C:\Users\ericw\Desktop\SECBAM\result\origin"
 img_dir2 = r"C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_ALL\result\origin"
-model1_name = r"C:\Users\ericw\Desktop\picture_compare3\SECBAM"
-model2_name = r"C:\Users\ericw\Desktop\picture_compare3\CycleGAN"
-base_output_dir = r"C:\Users\ericw\Desktop\picture_compare3"
+model1_name = r"C:\Users\ericw\Desktop\picture_compare4\SECBAM"
+model2_name = r"C:\Users\ericw\Desktop\picture_compare4\CycleGAN"
+base_output_dir = r"C:\Users\ericw\Desktop\picture_compare4"
 
 # 閾值
-LPIPS_thr = 0.03
-PL_thr = 0.03
-EDGE_thr = 0.1   # EdgeIoU 還是保留原本
-LPIPS_small = 0.02
-PL_small = 0.02
+LPIPS_thr = 0.02
+PL_thr = 0.005
+EDGE_thr = 0.07   # EdgeIoU 還是保留原本
+LPIPS_small = 0.015
+PL_small = 0.001
 
-TOP_N = 50   # 取前 N 張 (0 = 全部)
+TOP_N = 150   # 取前 N 張 (0 = 全部)
 # ======================
 
 def parse_txt(txt_file):

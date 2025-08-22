@@ -6,7 +6,7 @@ import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from test_metrics2 import FoggyToGTDataset, test_model
-from CycleGANFCACBAMC import Generator  # 根據你使用的模型架構載入
+from CycleGANSECBAM import Generator  # 根據你使用的模型架構載入
 from torchvision.transforms import InterpolationMode
 
 if __name__ == "__main__":
@@ -16,9 +16,9 @@ if __name__ == "__main__":
     # === 資料路徑設定 ===
     foggy_root = r'C:\Users\ericw\Desktop\testC'
     gt_root = r'C:\Users\ericw\Desktop\testB'
-    model_path = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_CBAM_C\models\checkpoint_epoch100.pth'
-    save_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_CBAM_C\result'
-    TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_FCA_CBAM_C\result\test_mean'
+    model_path = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_SE_CBAM_93\models\checkpoint_epoch93.pth'
+    save_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_SE_CBAM_93\result'
+    TXT_dir = r'C:\Users\ericw\Desktop\霧天實驗數據\CycleGAN_SE_CBAM_93\result\test_mean'
 
     # === 圖片轉換設定 ===
     transform = transforms.Compose([

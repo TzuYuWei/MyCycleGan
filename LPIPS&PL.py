@@ -11,9 +11,9 @@ import lpips
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # ====== 資料夾 ======
-lpips_dir = r"C:\Users\ericw\Desktop\picture_compare3\SECBAM\LPIPS"
-pl_dir = r"C:\Users\ericw\Desktop\picture_compare3\SECBAM\PL"
-gt_dir = r"C:\Users\ericw\Desktop\picture_compare3\PLGT"
+lpips_dir = r"C:\Users\ericw\Desktop\picture_compare4\CycleGAN\LPIPS"
+pl_dir = r"C:\Users\ericw\Desktop\picture_compare4\CycleGAN\PL"
+gt_dir = r"C:\Users\ericw\Desktop\PLGT"
 
 output_lpips_dir = lpips_dir + "_unqualified"
 output_pl_dir = pl_dir + "_unqualified"
@@ -43,8 +43,8 @@ transform = transforms.Compose([transforms.ToTensor()])
 
 # ====== Patch 切分 ======
 patch_size = 32  
-lpips_threshold = 0.035
-pl_threshold = 0.13
+lpips_threshold = 0.03
+pl_threshold = 0.15
 
 def get_patches(tensor_img, patch_size):
     _, _, H, W = tensor_img.shape
