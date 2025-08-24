@@ -16,6 +16,8 @@ import cv2
 import numpy as np
 from thop import profile
 
+TXT_dir = r'C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_ALL\result\train_mean2'
+
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):
     def __init__(self, rain_root, gt_root, transform=None):
@@ -104,11 +106,10 @@ def test_model(generator, dataloader, device, save_dir, TXT_dir):
     # 根據第一張圖片的路徑來決定是 flip 還是 origin
     first_rain_path = dataloader.dataset.rain_paths[0]
     txt_subname = "flip" if "flip" in first_rain_path else "origin"
-    result_txt = os.path.join(TXT_dir, f"test_results_93.txt")
+    result_txt = os.path.join(TXT_dir, f"test_results.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
-    jaccard = JaccardIndex(task="binary").to(device)
 
     total_ssim = total_psnr = total_lpips = total_pl = total_edge_iou = 0
 
