@@ -11,8 +11,8 @@ import lpips
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # ====== 資料夾 ======
-lpips_dir = r"C:\Users\ericw\Desktop\picture_compare5\SECBAM\LPIPS"
-pl_dir = r"C:\Users\ericw\Desktop\picture_compare5\SECBAM\PL"
+lpips_dir = r"C:\Users\ericw\Desktop\picture_compare5\CycleGAN\LPIPS"
+pl_dir = r"C:\Users\ericw\Desktop\picture_compare5\CycleGAN\PL"
 gt_dir = r"C:\Users\ericw\Desktop\GT"
 
 output_lpips_dir = lpips_dir + "_unqualified"

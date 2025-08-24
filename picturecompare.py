@@ -4,9 +4,9 @@ import shutil
 import pandas as pd
 
 # ====== 可調整參數 ======
-txt1 = r"C:\Users\ericw\Desktop\results\test_results_SECBAM.txt"
+txt1 = r"C:\Users\ericw\Desktop\results\test_results_SECBAM3.txt"
 txt2 = r"C:\Users\ericw\Desktop\results\test_results_CycleGAN.txt"
-img_dir1 = r"C:\Users\ericw\Desktop\alpha blend"
+img_dir1 = r"C:\Users\ericw\Desktop\alpha blend3"
 img_dir2 = r"C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_ALL\result\origin"
 model1_name = r"C:\Users\ericw\Desktop\picture_compare5\SECBAM"
 model2_name = r"C:\Users\ericw\Desktop\picture_compare5\CycleGAN"
@@ -15,7 +15,7 @@ base_output_dir = r"C:\Users\ericw\Desktop\picture_compare5"
 # 閾值
 LPIPS_thr = 0.02
 PL_thr = 0.01
-EDGE_thr = 0.1   # EdgeIoU 還是保留原本
+EDGE_thr = 0.07   # EdgeIoU 還是保留原本
 LPIPS_small = 0.01
 PL_small = 0.005
 
