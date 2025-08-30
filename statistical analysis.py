@@ -4,8 +4,8 @@ import pandas as pd
 import os
 
 # === 檔案路徑 ===
-base_dir = r'C:\Users\ericw\Desktop\results'
-origin_txt = os.path.join(base_dir, 'test_results_SECBAM_O3.txt')
+base_dir = r'C:\Users\User\Desktop\AB_CycleGAN_FCASE'
+origin_txt = os.path.join(base_dir, 'test_results.txt')
 flip_txt = os.path.join(base_dir, 'test_results_flip.txt')
 
 # === 正則表達式模式 ===
@@ -60,8 +60,8 @@ combined_stats = add_stats(combined_df, 'combined')
 
 # === 儲存 CSV ===
 if not origin_stats.empty:
-    origin_stats.to_csv(os.path.join(base_dir, 'stat_results_SECBAM_O3.csv'), encoding='utf-8-sig')
-    print("✅ 已儲存 stat_results_SECBAM_O3.csv")
+    origin_stats.to_csv(os.path.join(base_dir, 'stat_results.csv'), encoding='utf-8-sig')
+    print("✅ 已儲存 stat_results.csv")
 if not flip_stats.empty:
     flip_stats.to_csv(os.path.join(base_dir, 'stat_results_flip.csv'), encoding='utf-8-sig')
     print("✅ 已儲存 stat_results_flip.csv")

@@ -3,9 +3,9 @@ import numpy as np
 import os
 
 # 資料夾路徑（請換成你的資料夾路徑）
-gen_dir = r"C:\Users\ericw\Desktop\SECBAM\result\origin"
-orig_dir = r"C:\Users\ericw\Desktop\GT"
-output_dir = r"C:\Users\ericw\Desktop\alpha blend3"
+gen_dir = r"C:\Users\User\Desktop\AB_CycleGAN\origin"
+orig_dir = r"C:\Users\User\Desktop\GT"
+output_dir = r"C:\Users\User\Desktop\AB_CycleGAN\alpha blend"
 os.makedirs(output_dir, exist_ok=True)
 
 import numpy as np

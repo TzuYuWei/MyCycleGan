@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 from thop import profile
 
-TXT_dir = r'C:\Users\ericw\Desktop\口試後雨天實驗數據\CycleGAN_ALL\result\train_mean2'
+TXT_dir = r'C:\Users\User\Desktop\AB_CycleGAN'
 
 # === 測試資料集 ===
 class RainToGTDataset(Dataset):

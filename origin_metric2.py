@@ -13,6 +13,22 @@ import torch.nn.functional as F
 import cv2
 import numpy as np
 
+# === 建立右上角 1/4 圓遮罩 ===
+def apply_rect_mask(gen_img, gt_img, top_h=64):
+    """
+    遮住影像上方 top_h 高度的區域，只保留下方的生成區域做評估
+    gen_img, gt_img: Tensor [1,3,H,W]
+    top_h: 要遮住的高度 (例如 64)
+
+    return: (masked_gen, masked_gt, mask)
+    """
+    _, _, H, W = gen_img.shape
+    mask = torch.ones((1, 1, H, W), device=gen_img.device)
+    mask[:, :, :top_h, :] = 0   # 上方區域遮掉 (變 0)
+
+    return gen_img * mask, gt_img * mask, mask
+
+
 # === Dataset（讀取生成圖片 + GT）===
 class GenToGTDataset(Dataset):
     def __init__(self, gen_root, gt_root, transform=None):
@@ -94,7 +110,7 @@ from PIL import Image
 
 def test_generated_images(dataloader, device, TXT_dir, quantize=False):
     os.makedirs(TXT_dir, exist_ok=True)
-    result_txt = os.path.join(TXT_dir, f"test_results_AB_CycleGAN.txt")
+    result_txt = os.path.join(TXT_dir, f"test_results.txt")
 
     lpips_fn = lpips.LPIPS(net='alex').to(device)
     perceptual_loss_fn = VGGPerceptualLoss().to(device)
@@ -114,6 +130,7 @@ def test_generated_images(dataloader, device, TXT_dir, quantize=False):
                 gen_img = gen_img.to(device)
                 gt_img = gt_img.to(device)
 
+                # resize 與 clamp
                 gen_img = F.interpolate(gen_img, size=(256, 256), mode='bilinear', align_corners=False)
                 gt_img = F.interpolate(gt_img, size=(256, 256), mode='bilinear', align_corners=False)
                 gen_img = gen_img.clamp(0.0, 1.0)
@@ -121,19 +138,32 @@ def test_generated_images(dataloader, device, TXT_dir, quantize=False):
 
                 # === quantize 模式：存成 PNG 再讀回來 ===
                 if quantize:
-                    if isinstance(name, (list, tuple)):
-                        name = name[0]  # 🔧 解 tuple
                     tmp_path = os.path.join(tmp_dir, name)
                     save_image(gen_img, tmp_path)
                     gen_img = transforms.ToTensor()(Image.open(tmp_path).convert("RGB")).unsqueeze(0).to(device)
                 # ======================================
 
+                # 應用矩形遮罩（上方 64 px 不算）
+                gen_img, gt_img, mask = apply_rect_mask(gen_img, gt_img, top_h=64)
 
-                ssim_val = ssim(gen_img, gt_img, data_range=1.0).item()
-                psnr_val = psnr(gen_img, gt_img, data_range=1.0).item()
-                lpips_val = lpips_fn(gen_img, gt_img).mean().item()
-                pl_val = perceptual_loss_fn(gen_img, gt_img).item()
-                edge_val = edge_iou_opencv(gt_img[0], gen_img[0])
+                # region = 保留下來的部分 (1=要算, 0=不要算)
+                region = mask.bool()
+
+                # Debug 儲存
+                if i < 5:
+                    save_image(mask, os.path.join(TXT_dir, f"debug_mask_{i}_{name}.png"))        # 白=保留區域
+                    save_image(region.float(), os.path.join(TXT_dir, f"debug_region_{i}_{name}.png"))  # 白=保留區域
+
+
+                gen_valid = gen_img * region
+                gt_valid  = gt_img * region
+
+                # === 計算指標 ===
+                ssim_val = ssim(gen_valid, gt_valid, data_range=1.0).item()
+                psnr_val = psnr(gen_valid, gt_valid, data_range=1.0).item()
+                lpips_val = lpips_fn(gen_valid, gt_valid).mean().item()
+                pl_val = perceptual_loss_fn(gen_valid, gt_valid).item()
+                edge_val = edge_iou_opencv(gt_valid[0], gen_valid[0])
 
                 total_ssim += ssim_val
                 total_psnr += psnr_val
@@ -143,6 +173,7 @@ def test_generated_images(dataloader, device, TXT_dir, quantize=False):
 
                 # 儲存指標 log
                 print(f"[配對] {name}")
-                log_file.write(f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}\n")
-
-
+                log_file.write(
+                    f"{name}, SSIM: {ssim_val:.4f}, PSNR: {psnr_val:.2f} dB, "
+                    f"LPIPS: {lpips_val:.4f}, PL: {pl_val:.4f}, EDGE IoU: {edge_val:.4f}\n"
+                )
