@@ -2,10 +2,10 @@ import cv2
 import os
 
 # 原始圖片資料夾
-input_dir = r"C:\Users\ericw\Desktop\cannyGT\GT"
+input_dir = r"C:\Users\ericw\Desktop\Alpha_Blending\cannyGT\Rainy"
 
 # 輸出資料夾
-output_dir = r"C:\Users\ericw\Desktop\cannyGT\Edge"
+output_dir = r"C:\Users\ericw\Desktop\Alpha_Blending\cannyGT\Edge"
 os.makedirs(output_dir, exist_ok=True)
 
 # Canny 邊緣檢測參數
